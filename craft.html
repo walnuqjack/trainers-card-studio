@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リアルカード化工作ガイド｜トレーナーカードスタジオ (Trainers Card Studio)</title>
+  <meta name="description" content="トレーナーカードスタジオで作成した画像を、コンビニのシール印刷と100均アイテムを使って本物のプラスチックカード風に仕上げる工作手順ガイドです。">
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+  <link href="https://googleapis.com/css2?family=Murecho:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Murecho", sans-serif;
+      background: #fdf8f4;
+      color: #292524;
+      margin: 0;
+      padding: 0;
+      line-height: 1.75;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* ヘッダー（暖色系グラデーション） */
+    .hero {
+      background: linear-gradient(135deg, #c2410c 0%, #ea580c 55%, #f59e0b 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 36px 24px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(194, 65, 12, 0.22);
+      margin-bottom: 24px;
+    }
+    .badge-sub {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fef3c7;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .hero h1 {
+      margin: 0 0 12px 0;
+      font-size: clamp(20px, 3.5vw, 28px);
+      font-weight: 700;
+    }
+    .hero p {
+      margin: 0 auto;
+      max-width: 680px;
+      font-size: 14px;
+      color: #ffedd5;
+    }
+
+    /* カードセクション */
+    .section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 26px 24px;
+      margin-bottom: 22px;
+      box-shadow: 0 2px 10px rgba(120, 53, 15, 0.05);
+    }
+    .section h2 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      border-bottom: 2px solid #fed7aa;
+      padding-bottom: 8px;
+      color: #431407;
+    }
+
+    /* 用意するものリスト */
+    .materials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .materials-grid li {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+    .materials-grid li strong {
+      color: #7c2d12;
+    }
+    .materials-grid li span {
+      display: block;
+      font-size: 12px;
+      color: #78716c;
+    }
+
+    /* ステップカード */
+    .step-box {
+      background: #fffaf5;
+      border: 1px solid #fed7aa;
+      border-left: 5px solid #ea580c;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .step-box h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #c2410c;
+    }
+    .step-box ol {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+    }
+    .step-box ol li {
+      margin-bottom: 8px;
+    }
+    .step-box ol li:last-child {
+      margin-bottom: 0;
+    }
+    .note {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #b91c1c;
+      background: #fef2f2;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    /* ワンポイントアドバイス */
+    .advice-box {
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 24px;
+    }
+    .advice-box h2 {
+      margin: 0 0 10px 0;
+      font-size: 17px;
+      color: #854d0e;
+      border: none;
+      padding: 0;
+    }
+    .advice-box p {
+      margin: 0;
+      font-size: 14px;
+      color: #713f12;
+    }
+
+    /* ナビゲーションボタン */
+    .nav-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ea580c;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+    }
+    .btn-primary:hover { background: #c2410c; }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      color: #44403c;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      border: 1px solid #d6d3d1;
+    }
+    .btn-secondary:hover { background: #f5f5f4; }
+
+    /* フッター */
+    footer {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px 24px;
+      font-size: 12px;
+      color: #78716c;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ヘッダー -->
+  <header class="hero">
+    <div class="badge-sub">✂️ リアルカード化アレンジガイド</div>
+    <h1>コンビニ印刷で作る！<br>プラスチックカード化工作！</h1>
+    <p>
+      作成したトレーナーカードは、一般的なクレジットカードや交通系ICカードと同じ「JIS規格（約85.6mm×54mm）」の比率で作られています。<br>
+      コンビニのシール印刷と100円ショップのアイテムを使うと、本物のカードのように仕上げることができます！
+    </p>
+  </header>
+
+  <!-- 用意するもの -->
+  <section class="section">
+    <h2>■ 用意するもの</h2>
+    <ul class="materials-grid">
+      <li><strong>プラスチックカード</strong><span>JIS規格／クレジットカードと同サイズのもの</span></li>
+      <li><strong>デザインナイフ</strong><span>100均で購入可（カッターでも代用可）</span></li>
+      <li><strong>手貼りラミネートフィルム</strong><span>100均で購入可</span></li>
+      <li><strong>カッターマット（工作マット）</strong><span>100均で購入可</span></li>
+      <li><strong>定規</strong><span>金属製だと刃が定規に食い込むことがないので安全です</span></li>
+      <li><strong>ドライヤー</strong><span>ラミネートの熱圧着に使用します</span></li>
+      <li><strong>柔らかい布</strong><span>メガネ拭きやタオルなど、擦るためのもの</span></li>
+    </ul>
+  </section>
+
+  <!-- 作り方手順 -->
+  <section class="section">
+    <h2>■ 作り方手順</h2>
+
+    <div class="step-box">
+      <h3>【STEP 1】印刷用のデータを作る</h3>
+      <ol>
+        <li>お使いの画像編集ソフトで、L判サイズの新規キャンバス（<strong>1750×1226px・解像度350dpi・RGBモード</strong>）を作成します。</li>
+        <li>背景を<strong>白単色</strong>で塗りつぶします。</li>
+        <li>保存したトレーナーカード画像を読み込み、<strong>42%（0.42倍）</strong>に縮小して中央に配置します。</li>
+        <li>作成した画像を <strong>JPEG</strong> または <strong>PNG</strong> 形式で保存します。</li>
+      </ol>
+    </div>
+
+    <div class="step-box">
+      <h3>【STEP 2】コンビニでシール印刷する</h3>
+      <ol start="5">
+        <li>ローソン・ファミリーマート・ミニストップのマルチコピー機で、<strong>「シール紙印刷・L判・フチあり」</strong>を選んで印刷します。</li>
+      </ol>
+    </div>
+
+    <div class="step-box" style="margin-bottom: 0;">
+      <h3>【STEP 3】カードに貼り付けてラミネート保護する</h3>
+      <ol start="6">
+        <li>定規とデザインナイフを使い、印刷されたシールをトレーナーカード画像に沿って切り抜きます。</li>
+        <li>
+          切り抜いたシールをプラスチックカードに丁寧に貼り付けます。<br>
+          <span class="note">※印刷面は非常に傷つきやすいので、爪や定規で擦らないようご注意ください。</span>
+        </li>
+        <li>手貼りラミネートフィルムの「粘着面」を、シールを貼った面に貼り合わせます。</li>
+        <li>ドライヤーで軽く温めながら、布を使って上から何度も強めに擦り、しっかり圧着させます（透明度が上がり、気泡がなくなるまで繰り返すのがコツです）。</li>
+        <li>カードより一回り大きくラミネートフィルムを切り取ります。</li>
+        <li>シールを貼っていない裏面側（非粘着面）のフィルムを慎重にはがします。</li>
+        <li>カードからはみ出した余分なラミネートを、カードのフチに沿ってデザインナイフで切り落としたら完成です！</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ワンポイントアドバイス -->
+  <div class="advice-box">
+    <h2>💡 きれいに仕上げるワンポイントアドバイス</h2>
+    <p>
+      <strong>フチの白残りを防ぎたい場合：</strong><br>
+      STEP 1の縮小倍率を少し大きめ（<strong>45%／0.45倍程度？</strong>）にして印刷し、プラスチックカードに貼ったあとに<strong>はみ出した部分をカードのフチに沿ってカット</strong>すると、ズレによる白い隙間がなくなり、より綺麗な仕上がりになるかも？
+    </p>
+  </div>
+
+  <!-- ページ移動ボタン -->
+  <div class="nav-buttons">
+    <a href="maker.html" class="btn-primary">カードを作成する →</a>
+    <a href="index.html" class="btn-secondary">← トップページへ戻る</a>
+  </div>
+
+  <!-- フッター -->
+  <footer>
+    ※刃物やドライヤーを使用しますので、ケガや火傷には十分ご注意ください。<br>
+    トレーナーカードスタジオ (Trainers Card Studio)
+  </footer>
+</div>
+
+</body>
+</html>

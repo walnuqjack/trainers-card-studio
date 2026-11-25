@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>トレーナーカードスタジオ (Trainers Card Studio)｜身分証風トレーナーカード無料作成ツール</title>
+  <meta name="description" content="出身地・地方・ライセンス・手持ちポケモン・バッジまで自由にカスタムして、身分証風のオリジナルトレーナーカードを作成・PNG保存できる非公式ファンメイドツールです。">
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+  <link href="https://googleapis.com/css2?family=Murecho:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Murecho", sans-serif;
+      background: #f4f6f8;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* ヒーローエリア（トップの看板） */
+    .hero {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 48px 28px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+      margin-bottom: 32px;
+    }
+    .badge-unofficial {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+    .hero h1 {
+      margin: 0 0 12px 0;
+      font-size: clamp(24px, 4vw, 36px);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .hero p {
+      margin: 0 auto 28px auto;
+      max-width: 680px;
+      font-size: 15px;
+      color: #cbd5e1;
+    }
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #3b82f6;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      padding: 16px 36px;
+      border-radius: 10px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .btn-primary:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+    .btn-x {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f1419;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 16px 26px;
+      border-radius: 10px;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .btn-x:hover {
+      background: #272c30;
+      transform: translateY(-2px);
+    }
+
+    /* セクション共通 */
+    .section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    }
+    .section h2 {
+      margin: 0 0 18px 0;
+      font-size: 19px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 8px;
+      color: #0f172a;
+    }
+
+    /* 特徴グリッド */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .feature-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 15px;
+      color: #2563eb;
+    }
+    .feature-card p {
+      margin: 0;
+      font-size: 13px;
+      color: #475569;
+    }
+
+    /* サンプルカード展示 */
+    .samples {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .sample-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+    .sample-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+      aspect-ratio: 3033 / 1914;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+    .sample-caption {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #475569;
+      text-align: center;
+    }
+
+    /* 使い方ステップ */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .step-item {
+      background: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .step-item strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: #0f172a;
+    }
+
+    /* フッター */
+    footer {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      font-size: 12px;
+      color: #475569;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    footer h4 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+    footer ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 1. トップ看板（ヒーローセクション） -->
+  <header class="hero">
+    <div class="badge-unofficial">※個人制作の非公式ファンメイドツール（公式とは一切関係ありません）</div>
+    <h1>トレーナーカードスタジオ<br><span style="font-size: 0.65em; font-weight: 500; color: #93c5fd;">Trainers Card Studio</span></h1>
+    <p>
+      出身地・地方・ライセンス・手持ちポケモン・バッジまで自由にカスタムして、<br>
+      身分証風のオリジナルトレーナーカードを作成・PNG保存できる無料Webツールです。      
+    </p>
+    <div class="cta-group">
+      <a href="maker.html" class="btn-primary">カードを作成する →</a>
+      <a href="javascript:void(0)" id="viewXBtn" class="btn-x">
+        𝕏 でみんなのカードを見る
+      </a>
+    </div>
+  </header>
+
+  <!-- 2. サンプルカード紹介 -->
+  <section class="section">
+    <h2>サンプル</h2>
+    <div class="samples">
+      <div class="sample-box">
+        <img src="images/sample_01.png" alt="サンプルカード1" onerror="this.style.display='none'">
+        <div class="sample-caption">サンプル①：スタンダードな有名トレーナー風</div>
+      </div>
+      <div class="sample-box">
+        <img src="images/sample_02.png" alt="サンプルカード2" onerror="this.style.display='none'">
+        <div class="sample-caption">サンプル②：カラフル＆色違い手持ち編成</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 主な機能・特徴 -->
+  <section class="section">
+    <h2>このツールでできること</h2>
+    <div class="features">
+      <div class="feature-card">
+        <h3>🎨 細部まで自由なカラー変更</h3>
+        <p>カード枠や背景パーツごとに色を変更可能。RGB / HSLの1単位での微調整にも対応しています。</p>
+      </div>
+      <div class="feature-card">
+        <h3>🪪 身分証風プロフィール</h3>
+        <p>トレーナー名・出身地・地方・ライセンス種別・発行元・年齢・性別・誕生日・フレンドコードやXアカウントを親しみやすいフォントで自動印字します。</p>
+      </div>
+      <div class="feature-card">
+        <h3>📸 トレーナー画像の直感配置</h3>
+        <p>お好みのイラストやスクリーンショットをアップロードし、プレビュー上でドラッグ移動・拡大縮小・回転・明るさ＆コントラスト調整ができます。</p>
+      </div>
+      <div class="feature-card">
+        <h3>⚡ 全1025匹＆バッジ・ボール対応</h3>
+        <p>色違い・♂オス♀メス姿・左右反転・個別サイズ調整に対応した手持ち6匹と、最大8個のバッジ、30種のボールデザインを選べます。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 使い方ステップ -->
+  <section class="section">
+    <h2>かんたん4ステップの使い方</h2>
+    <div class="steps">
+      <div class="step-item">
+        <strong>STEP 1：デザインと色を決める</strong>
+        写真枠や言語、各パーツのカラーを好みに合わせて調整します。
+      </div>
+      <div class="step-item">
+        <strong>STEP 2：プロフィールを入力</strong>
+        トレーナー名や出身地、ライセンス種別などを入力します。
+      </div>
+      <div class="step-item">
+        <strong>STEP 3：画像と手持ちを配置</strong>
+        トレーナー画像や手持ちポケモン6匹、バッジ・ボールをセットします。
+      </div>
+      <div class="step-item">
+        <strong>STEP 4：高画質PNGで保存・共有</strong>
+        完成したらワンクリックでPNG保存、またはXでみんなにシェアできます。
+      </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 24px;">
+      <a href="maker.html" class="btn-primary">さっそくカードを作ってみる →</a>
+      <a href="craft.html" style="display: inline-flex; align-items: center; justify-content: center; background: #fff; color: #1e293b; font-size: 15px; font-weight: 700; padding: 16px 24px; border-radius: 10px; text-decoration: none; border: 2px solid #cbd5e1;">
+        ✂️ コンビニ印刷でリアルカード化する方法
+      </a>
+    </div>
+  </section>
+
+  <!-- 5. 利用規約・クレジット表記 -->
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <h4>利用規約・注意事項</h4>
+        <ul>
+          <li>本ツールで作成した画像は、SNS（Xなど）への投稿・プロフィール利用など個人利用の範囲で自由にお使いいただけます。</li>
+          <li>公序良俗に反する表現、他者への誹謗中傷、営利目的での販売・再配布、素材の抜き出し利用は禁止します。</li>
+          <li>本ツールの利用により生じた損害・トラブルについて、運営者は一切の責任を負いかねます。</li>
+        </ul>
+      </div>
+      <div>
+        <h4>クレジット・ライセンス表記</h4>
+        <ul>
+          <li>本サイトは個人が公開している非公式のファンメイドツールです。株式会社ポケモン・任天堂・クリーチャーズ・ゲームフリーク等とは一切関係ありません。</li>
+          <li>ポケットモンスター・ポケモン・Pokémonは任天堂・クリーチャーズ・ゲームフリークの登録商標です。</li>
+          <li>カード枠・バッジ等の各種パーツ画像は、公式モチーフをもとに運営者が描き起こしたファンアート素材です。</li>
+          <li>一部ボールシルエット素材：<a href="https://nicovideo.jp" target="_blank" rel="noopener noreferrer" style="color: #2563eb;">ニコニ・コモンズ（nc181114）</a> の配布素材を使用しています。</li>
+          <li>手持ちポケモンの画像・図鑑データには <strong>PokéAPI</strong> の公開リソースを使用しています。</li>
+          <li>使用フォント：<strong>Murecho</strong>（Google Fonts / SIL Open Font License 1.1）</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+  document.getElementById('viewXBtn').onclick = function() {
+    const domain = ['x', 'com'].join('.');
+    const query = encodeURIComponent('#トレーナーカードスタジオ OR #TrainersCardStudio');
+    const url = 'https://' + domain + '/search?q=' + query + '&f=live';
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>トレーナーカードスタジオ(Trainers Card Studio)｜身分証風トレーナーカード無料作成ツール</title>
+  <meta name="description" content="カードデザイン・出身地・地方・ライセンス・手持ちポケモン・バッジまで自由にカスタムして、身分証風のオリジナルトレーナーカードを作成・PNG保存できる非公式ファンメイドツールです。">
+  <link href="https://googleapis.com/css2?family=Murecho:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: sans-serif;
+      background: #f4f6f8;
+      padding: 20px;
+      margin: 0;
+    }
+
+    /* 画面横幅いっぱいに広げる2カラムコンテナ */
+    .wrapper {
+      width: 100%;
+      max-width: 1680px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    /* 左側：プレビューエリア（スクロールしても画面に固定） */
+    .left-pane {
+      flex: 1.15;
+      position: sticky;
+      top: 20px;
+      min-width: 0;
+    }
+
+    /* 右側：操作パネル群 */
+    .right-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    /* スマホや狭い画面では自動で縦1列に戻す */
+    @media (max-width: 1024px) {
+      .wrapper { flex-direction: column; }
+      .left-pane { position: static; width: 100%; }
+      .right-pane { width: 100%; }
+    }
+
+    .card {
+      background: #fff;
+      padding: 18px 22px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 15px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 6px;
+    }
+
+    /* 1. パーツ切替 */
+    .top-bar-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .top-bar-items .box {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    /* 2. 色変更 */
+    .color-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
+    }
+
+    .box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fafafa;
+      font-size: 13px;
+    }
+
+    input[type="color"] {
+      border: none;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      background: none;
+      padding: 0;
+    }
+
+    /* 3. トレーナー画像操作バー */
+    .trainer-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      background: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px dashed #cbd5e1;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .trainer-controls label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 4. プレビューキャンバス */
+    canvas {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 3033 / 1914;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      display: block;
+      touch-action: none;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+      text-align: right;
+    }
+
+    button.save {
+      width: 100%;
+      margin-top: 12px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.save:hover { background: #2563eb; }
+
+    /* 5. メイン差分（ボール一覧） */
+    .diff-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .btn {
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn:hover { border-color: #3b82f6; }
+    .btn.active {
+      background: #3b82f6;
+      color: #fff;
+      border-color: #3b82f6;
+      font-weight: bold;
+    }
+
+    /* 6. ジムバッジ選択エリア */
+    .badge-slots {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .badge-slot {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 4px;
+      text-align: center;
+      background: #f8fafc;
+      font-size: 10px;
+    }
+    .badge-slot img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      display: block;
+      margin: 4px auto;
+    }
+    .badge-slot-btns {
+      display: flex;
+      justify-content: center;
+      gap: 2px;
+      margin-top: 4px;
+    }
+    .badge-slot-btns button {
+      padding: 2px 4px;
+      font-size: 10px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 4px;
+    }
+    .badge-catalog {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+      gap: 6px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 4px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+    .badge-item {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 6px;
+      text-align: center;
+      background: #fff;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .badge-item:hover {
+      border-color: #3b82f6;
+      background: #f0f7ff;
+    }
+    .badge-item img {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 4px;
+    }
+  </style>
+</head>
+
+
+<body>
+
+<!-- ページ上部：ヘッダータイトル＆非公式表記 -->
+<header style="max-width: 1680px; margin: 0 auto 16px auto; background: #fff; padding: 14px 22px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+  <div>
+    <h1 style="margin: 0; font-size: 20px; color: #1e293b;">トレーナーカードスタジオ (Trainers Card Studio)</h1>
+    <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;">
+      カードデザイン・出身地・地方・ライセンス・手持ちポケモン・バッジまで自由にカスタムして、身分証風のオリジナルトレーナーカードを作成・PNG保存できる非公式ファンメイドツールです。
+    </p>
+  </div>
+  <div style="font-size: 11px; color: #475569; background: #f1f5f9; padding: 6px 12px; border-radius: 6px;">
+    ※本サイトは個人制作の非公式ツールであり、公式とは一切関係ありません。
+  </div>
+</header>
+
+<div class="wrapper">
+  <!-- 左側：常に画面に固定されるプレビュー＆トレーナー画像設定 -->
+  <div class="left-pane">
+    <div class="card">
+      <h3>1. トレーナー画像設定＆プレビュー</h3>
+      <div class="trainer-controls">
+        <input type="file" id="trainerUpload" accept="image/*">
+        <label>拡大縮小 <input type="range" id="scaleSlider" min="0.1" max="3.0" step="0.01" value="1"></label>
+        <label>回転 <input type="range" id="rotateSlider" min="-180" max="180" step="1" value="0"></label>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; width:100%; padding-top:6px; border-top:1px dashed #cbd5e1;">
+          <label style="display:flex; align-items:center; gap:6px;">
+            明るさ
+            <input type="range" id="brightnessSlider" min="0" max="200" step="1" value="100" style="width:90px;">
+            <input type="number" id="brightnessNum" min="0" max="200" step="1" value="100" style="width:58px; padding:3px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;">%
+          </label>
+          <label style="display:flex; align-items:center; gap:6px;">
+            コントラスト
+            <input type="range" id="contrastSlider" min="0" max="200" step="1" value="100" style="width:90px;">
+            <input type="number" id="contrastNum" min="0" max="200" step="1" value="100" style="width:58px; padding:3px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;">%
+          </label>
+          <button type="button" class="btn" id="resetFilterBtn" style="padding:4px 8px; font-size:11px;">色調リセット</button>
+        </div>
+        <button class="btn" id="resetTrainerBtn">位置・サイズをリセット</button>
+      </div>
+      <canvas id="canvas" width="3033" height="1914"></canvas>
+      <div class="hint">※プレビュー上のトレーナー・ポケモンをドラッグで移動、青い角丸で拡大縮小、緑の丸で回転（Shift押しながらで45度刻み）</div>
+      <button class="save" id="downloadBtn">画像を保存する（3033×1914 PNG）</button>      
+      <button type="button" id="shareXBtn" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 15px; font-weight: bold; background: #0f1419; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+        𝕏 で画像を共有する
+      </button>
+      <div style="text-align: center; font-size: 12px; color: #ffffff; margin-top: 6px;">
+        全ユーザー累計カード作成数：<strong id="saveCounterNum" style="color: #ffffff; font-size: 14px;">読み込み中...</strong> 枚
+      </div>
+
+      <!-- クリック後に表示されるX遷移案内ボックス -->
+      <div id="xShareBox" style="display: none; margin-top: 10px; padding: 14px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; text-align: center; font-size: 13px; color: #0f172a;">
+        <div id="xShareMsg" style="font-weight: bold; margin-bottom: 8px; color: #0369a1;">
+          ✅ トレーナーカードの画像をダウンロードしました！
+        </div>
+        <div style="font-size: 12px; color: #475569; margin-bottom: 10px;">
+          下のボタンを押してXに移動し、ダウンロードした画像を添付orコピーした画像を張り付けるとトレーナーカードをポストできます。
+        </div>
+        <a href="javascript:void(0)" id="goToXLink" target="_blank" rel="noopener noreferrer" style="display: inline-block; width: 100%; padding: 11px; background: #0f1419; color: #fff; font-weight: bold; text-decoration: none; border-radius: 6px; font-size: 14px;">
+          𝕏 に移動してポストする →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右側：スクロールして操作する各種設定パネル -->
+  <div class="right-pane">
+    <!-- 2. パーツ切替 -->
+    <div class="card">
+      <h3>2. パーツ切替（写真枠・言語）</h3>
+      <div class="top-bar-items" id="subDiffArea"></div>
+    </div>
+
+    <!-- 3. 色変更 -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #eee; padding-bottom:6px; margin-bottom:12px;">
+        <h3 style="border:none; margin:0; padding:0;">3. 色変更</h3>
+        <div style="display:flex; gap:6px; align-items:center; font-size:12px;">
+          <span>数値モード：</span>
+          <button type="button" class="btn active" id="modeRgbBtn" style="padding:4px 10px;">RGB</button>
+          <button type="button" class="btn" id="modeHslBtn" style="padding:4px 10px;">HSL</button>
+          <button type="button" class="btn" id="resetColorsBtn" style="padding:4px 10px; margin-left:4px;">色をリセット</button>
+        </div>
+      </div>
+      <div class="color-list" id="colorArea"></div>
+    </div>
+
+    <!-- 4. トレーナー情報（文字・性別）入力（折りたたみ式） -->
+    <div class="card">
+      <details>
+        <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
+          4. トレーナー情報入力 ※クリックして開閉
+        </summary>
+        <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; font-size:13px;">
+            <div class="box"><span>トレーナー名</span><input type="text" id="txtName" placeholder="名前を入力" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+            <div class="box"><span>出身地</span><input type="text" id="txtBirthplace" placeholder="例：マサラタウン" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+            <div class="box"><span>地方</span><input type="text" id="txtRegion" placeholder="例：カントー地方" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+            <div class="box" style="flex-direction:column; align-items:stretch; gap:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>ライセンス</span>
+                <select id="selLicense" style="width:150px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                  <option value="">（選択または下に入力）</option>
+                  <option value="スタンダード">スタンダード（一般）</option>
+                  <option value="一般">一般</option>
+                  <option value="オフィサー">オフィサー（公務員）</option>
+                  <option value="公務員">公務員</option>
+                  <option value="バトルスペシャリスト">バトルスペシャリスト（バトル専門家）</option>
+                  <option value="バトル専門家">バトル専門家</option>
+                  <option value="リサーチャー">リサーチャー（研究者）</option>
+                  <option value="研究者">研究者</option>
+                  <option value="コーディネーター">コーディネーター</option>
+                  <option value="ブリーダー">ブリーダー</option>
+                  <option value="レンジャー">レンジャー</option>
+                  <option value="ポケモンドクター">ポケモンドクター</option>
+                  <option value="ポケモンナース">ポケモンナース</option>
+                </select>
+              </div>
+              <input type="text" id="txtLicense" placeholder="自由記入（選択すると自動反映）" style="width:100%; padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+            </div>
+            <div class="box"><span>発行元</span><input type="text" id="txtIssuer" placeholder="例：ポケモンリーグ" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+            <div class="box"><span>年齢</span><input type="text" id="txtAge" placeholder="例：10歳" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+            <div class="box" style="flex-direction:column; align-items:stretch; gap:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>性別</span>
+                <select id="selSex" style="width:150px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                  <option value="">（選択または下に入力）</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                  <option value="X">X</option>
+                </select>
+              </div>
+              <input type="text" id="txtSex" placeholder="自由記入（選択すると自動反映）" style="width:100%; padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+            </div>
+            <div class="box"><span>誕生日</span><input type="text" id="txtBirthday" placeholder="例：5月22日" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+            <div class="box"><span>フレンドコード、Xアカウントなど</span><input type="text" id="txtContact" placeholder="例：SW-0000-0000-0000" style="width:150px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"></div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+
+    <!-- 5. 手持ちポケモン6匹選択（折りたたみ式） -->
+    <div class="card">
+      <details>
+        <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
+          5. 手持ちポケモン選択（最大6匹） ※クリックして開閉
+        </summary>
+        <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:10px; font-size:12px;">
+            <span>※プレビュー上のポケモンをドラッグで移動、青い角丸で拡大縮小できます</span>
+            <button type="button" class="btn" id="resetAllPokemonBtn">6匹すべての位置・サイズをリセット</button>
+          </div>
+          <div id="pokemonSelectArea" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;"></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- 6. ジムバッジ・勲章選択（折りたたみ式） -->
+    <div class="card">
+      <details>
+        <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
+          6. ジムバッジ・ヌシバッジ・スター団バッジ（最大8個） ※クリックして開閉
+        </summary>
+        <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13px;">
+            <span>選択中（クリックで追加、←→で順番変更、×で削除）：</span>
+            <button class="btn" id="clearBadgesBtn">すべて解除</button>
+          </div>
+          <div class="badge-slots" id="badgeSlotsArea"></div>
+          <div class="badge-catalog" id="badgeCatalogArea"></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- 7. メイン差分（素材12：折りたたみ式） -->
+    <div class="card">
+      <details>
+        <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
+          7. ボールデザイン選択 ※クリックして開閉
+        </summary>
+        <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
+          <div class="diff-list" id="mainDiffArea"></div>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.wrapper の終わり -->
+
+<!-- ページ下部：利用規約・クレジット・ライセンス表記 -->
+<footer style="max-width: 1680px; margin: 24px auto 0 auto; background: #fff; padding: 20px 24px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); font-size: 12px; color: #475569; line-height: 1.7;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    <div>
+      <h4 style="margin: 0 0 6px 0; font-size: 13px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">利用規約・注意事項</h4>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>本ツールで作成した画像は、SNS（Xなど）への投稿・プロフィール利用など個人利用の範囲で自由にお使いいただけます。</li>
+        <li>公序良俗に反する表現、他者への誹謗中傷、営利目的での販売・再配布、素材の抜き出し利用は禁止します。</li>
+        <li>本ツールの利用により生じた損害・トラブルについて、制作者は一切の責任を負いかねます。</li>
+      </ul>
+    </div>
+    <div>
+      <h4 style="margin: 0 0 6px 0; font-size: 13px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">クレジット・ライセンス表記</h4>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>本サイトは個人が公開している非公式のファンメイドツールです。株式会社ポケモン・任天堂・クリーチャーズ・ゲームフリーク等とは一切関係ありません。</li>
+        <li>ポケットモンスター・ポケモン・Pokémonは任天堂・クリーチャーズ・ゲームフリークの登録商標です。</li>
+        <li>カード枠・バッジ等の各種パーツ画像は、公式モチーフをもとに運営者が描き起こしたファンアート素材です。</li>
+        <li>一部ボールシルエット素材：<a href="https://commons.nicovideo.jp/works/nc181114" target="_blank" rel="noopener noreferrer" style="color: #2563eb;">ニコニ・コモンズ（nc181114）</a> の配布素材を使用しています。</li>
+        <li>手持ちポケモンの画像・図鑑データには <strong>PokéAPI</strong> の公開リソースを使用しています。</li>
+        <li>使用フォント：<strong>Murecho</strong>（Google Fonts / SIL Open Font License 1.1）</li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // 6匹それぞれのマスク枠（1匹目：08_a 〜 6匹目：08_f）
+  const pokemonMasks = [
+    'images/08_a.png',
+    'images/08_b.png',
+    'images/08_c.png',
+    'images/08_d.png',
+    'images/08_e.png',
+    'images/08_f.png'
+  ];
+
+  // ==========================================
+  // 1. ジムバッジ・勲章リスト（001〜078）
+  // ==========================================
+  const badgeList = [
+    // 【カントー地方（001〜008）】
+    { name: 'グレーバッジ',         src: 'images/badges/001.png', width: 210, height: 210 },
+    { name: 'ブルーバッジ',         src: 'images/badges/002.png', width: 210, height: 210 },
+    { name: 'オレンジバッジ',       src: 'images/badges/003.png', width: 210, height: 210 },
+    { name: 'レインボーバッジ',     src: 'images/badges/004.png', width: 210, height: 210 },
+    { name: 'ピンクバッジ',         src: 'images/badges/005.png', width: 210, height: 210 },
+    { name: 'ゴールドバッジ',       src: 'images/badges/006.png', width: 210, height: 210 },
+    { name: 'クリムゾンバッジ',     src: 'images/badges/007.png', width: 210, height: 210 },
+    { name: 'グリーンバッジ',       src: 'images/badges/008.png', width: 210, height: 210 },
+    // 【ジョウト地方（009〜016）】
+    { name: 'ウイングバッジ',       src: 'images/badges/009.png', width: 210, height: 210 },
+    { name: 'インセクトバッジ',     src: 'images/badges/010.png', width: 210, height: 210 },
+    { name: 'レギュラーバッジ',     src: 'images/badges/011.png', width: 210, height: 210 },
+    { name: 'ファントムバッジ',     src: 'images/badges/012.png', width: 210, height: 210 },
+    { name: 'ショックバッジ',       src: 'images/badges/013.png', width: 210, height: 210 },
+    { name: 'スチールバッジ',       src: 'images/badges/014.png', width: 210, height: 210 },
+    { name: 'アイスバッジ',         src: 'images/badges/015.png', width: 210, height: 210 },
+    { name: 'ライジングバッジ',     src: 'images/badges/016.png', width: 210, height: 210 },
+    // 【ホウエン地方（017〜024）】
+    { name: 'ストーンバッジ',       src: 'images/badges/017.png', width: 210, height: 210 },
+    { name: 'ナックルバッジ',       src: 'images/badges/018.png', width: 210, height: 210 },
+    { name: 'ダイナモバッジ',       src: 'images/badges/019.png', width: 210, height: 210 },
+    { name: 'ヒートバッジ',         src: 'images/badges/020.png', width: 210, height: 210 },
+    { name: 'バランスバッジ',       src: 'images/badges/021.png', width: 210, height: 210 },
+    { name: 'フェザーバッジ',       src: 'images/badges/022.png', width: 210, height: 210 },
+    { name: 'マインドバッジ',       src: 'images/badges/023.png', width: 210, height: 210 },
+    { name: 'レインバッジ',         src: 'images/badges/024.png', width: 210, height: 210 },
+    // 【シンオウ地方（025〜032）】
+    { name: 'コールバッジ',         src: 'images/badges/025.png', width: 210, height: 210 },
+    { name: 'フォレストバッジ',     src: 'images/badges/026.png', width: 210, height: 210 },
+    { name: 'コブルバッジ',         src: 'images/badges/027.png', width: 210, height: 210 },
+    { name: 'フェンバッジ',         src: 'images/badges/028.png', width: 210, height: 210 },
+    { name: 'レリックバッジ',       src: 'images/badges/029.png', width: 210, height: 210 },
+    { name: 'マインバッジ',         src: 'images/badges/030.png', width: 210, height: 210 },
+    { name: 'グレイシャバッジ',     src: 'images/badges/031.png', width: 210, height: 210 },
+    { name: 'ビーコンバッジ',       src: 'images/badges/032.png', width: 210, height: 210 },
+    // 【イッシュ地方（033〜042）】
+    { name: 'トライバッジ',         src: 'images/badges/033.png', width: 210, height: 210 },
+    { name: 'ベーシックバッジ',     src: 'images/badges/034.png', width: 210, height: 210 },
+    { name: 'ビートルバッジ',       src: 'images/badges/035.png', width: 210, height: 210 },
+    { name: 'ボルトバッジ',         src: 'images/badges/036.png', width: 210, height: 210 },
+    { name: 'クエイクバッジ',       src: 'images/badges/037.png', width: 210, height: 210 },
+    { name: 'ジェットバッジ',       src: 'images/badges/038.png', width: 210, height: 210 },
+    { name: 'アイシクルバッジ',     src: 'images/badges/039.png', width: 210, height: 210 },
+    { name: 'レジェンドバッジ',     src: 'images/badges/040.png', width: 210, height: 210 },
+    { name: 'トキシックバッジ',     src: 'images/badges/041.png', width: 210, height: 210 },
+    { name: 'ウェーブバッジ',       src: 'images/badges/042.png', width: 210, height: 210 },
+    // 【カロス地方（043〜050）】
+    { name: 'バグバッジ',           src: 'images/badges/043.png', width: 210, height: 210 },
+    { name: 'ウォールバッジ',       src: 'images/badges/044.png', width: 210, height: 210 },
+    { name: 'ファイトバッジ',       src: 'images/badges/045.png', width: 210, height: 210 },
+    { name: 'プラントバッジ',       src: 'images/badges/046.png', width: 210, height: 210 },
+    { name: 'ボルテージバッジ',     src: 'images/badges/047.png', width: 210, height: 210 },
+    { name: 'フェアリーバッジ',     src: 'images/badges/048.png', width: 210, height: 210 },
+    { name: 'サイキックバッジ',     src: 'images/badges/049.png', width: 210, height: 210 },
+    { name: 'アイスバーグバッジ',   src: 'images/badges/050.png', width: 210, height: 210 },
+    // 【ガラル地方（051〜060）】
+    { name: 'くさバッジ',           src: 'images/badges/051.png', width: 210, height: 210 },
+    { name: 'みずバッジ',           src: 'images/badges/052.png', width: 210, height: 210 },
+    { name: 'ほのおバッジ',         src: 'images/badges/053.png', width: 210, height: 210 },
+    { name: 'かくとうバッジ',       src: 'images/badges/054.png', width: 210, height: 210 },
+    { name: 'ゴーストバッジ',       src: 'images/badges/055.png', width: 210, height: 210 },
+    { name: 'フェアリーバッジ(剣盾)', src: 'images/badges/056.png', width: 210, height: 210 },
+    { name: 'いわバッジ',           src: 'images/badges/057.png', width: 210, height: 210 },
+    { name: 'こおりバッジ',         src: 'images/badges/058.png', width: 210, height: 210 },
+    { name: 'あくバッジ',           src: 'images/badges/059.png', width: 210, height: 210 },
+    { name: 'ドラゴンバッジ',       src: 'images/badges/060.png', width: 210, height: 210 },
+    // 【パルデア地方：ジム・ヌシ・スター団（061〜078）】
+    { name: 'むしバッジ',           src: 'images/badges/061.png', width: 210, height: 210 },
+    { name: 'くさバッジ(SV)',       src: 'images/badges/062.png', width: 210, height: 210 },
+    { name: 'でんきバッジ',         src: 'images/badges/063.png', width: 210, height: 210 },
+    { name: 'みずバッジ(SV)',       src: 'images/badges/064.png', width: 210, height: 210 },
+    { name: 'ノーマルバッジ',       src: 'images/badges/065.png', width: 210, height: 210 },
+    { name: 'ゴーストバッジ(SV)',   src: 'images/badges/066.png', width: 210, height: 210 },
+    { name: 'エスパーバッジ',       src: 'images/badges/067.png', width: 210, height: 210 },
+    { name: 'こおりバッジ(SV)',     src: 'images/badges/068.png', width: 210, height: 210 },
+    { name: '岩壁のヌシバッジ',     src: 'images/badges/069.png', width: 210, height: 210 },
+    { name: '大空のヌシバッジ',     src: 'images/badges/070.png', width: 210, height: 210 },
+    { name: '潜鋼のヌシバッジ',     src: 'images/badges/071.png', width: 210, height: 210 },
+    { name: '土震のヌシバッジ',     src: 'images/badges/072.png', width: 210, height: 210 },
+    { name: '偽竜のヌシバッジ',     src: 'images/badges/073.png', width: 210, height: 210 },
+    { name: 'スター団・あくバッジ', src: 'images/badges/074.png', width: 210, height: 210 },
+    { name: 'スター団・ほのおバッジ', src: 'images/badges/075.png', width: 210, height: 210 },
+    { name: 'スター団・どくバッジ', src: 'images/badges/076.png', width: 210, height: 210 },
+    { name: 'スター団・フェアリーバッジ', src: 'images/badges/077.png', width: 210, height: 210 },
+    { name: 'スター団・かくとうバッジ', src: 'images/badges/078.png', width: 210, height: 210 }
+  ];
+
+  // ==========================================
+  // 2. 差分のファイルリスト
+  // ==========================================
+  const diff06 = [
+    { name: 'パスポート写真サイズ', src: 'images/06_a.png', maskSrc: 'images/07_a.png' },
+    { name: '剣盾リーグカードサイズ', src: 'images/06_b.png', maskSrc: 'images/07_b.png' }
+  ];
+
+  const diff09 = [
+    { name: '項目：日本語', src: 'images/09_a.png' },
+    { name: '項目：英語', src: 'images/09_b.png' }
+  ];
+
+  const diff12 = [
+    { name: 'モンスターボール', src: 'images/12_01.png' },
+    { name: 'スーパーボール', src: 'images/12_02.png' },
+    { name: 'ハイパーボール', src: 'images/12_03.png' },
+    { name: 'マスターボール', src: 'images/12_04.png' },
+    { name: 'プレミアボール', src: 'images/12_05.png' },
+    { name: 'ゴージャスボール', src: 'images/12_06.png' },
+    { name: 'プレシャスボール', src: 'images/12_07.png' },
+    { name: 'サファリボール', src: 'images/12_08.png' },
+    { name: 'コンペボール', src: 'images/12_09.png' },
+    { name: 'ウルトラボール', src: 'images/12_10.png' },
+    { name: 'ストレンジボール', src: 'images/12_11.png' },
+    { name: 'パークボール', src: 'images/12_12.png' },
+    { name: 'ドリームボール', src: 'images/12_13.png' },
+    { name: 'ラブラブボール', src: 'images/12_14.png' },
+    { name: 'フレンドボール', src: 'images/12_15.png' },
+    { name: 'スピードボール', src: 'images/12_16.png' },
+    { name: 'ムーンボール', src: 'images/12_17.png' },
+    { name: 'ヘビーボール', src: 'images/12_18.png' },
+    { name: 'レベルボール', src: 'images/12_19.png' },
+    { name: 'ルアーボール', src: 'images/12_20.png' },
+    { name: 'ダークボール', src: 'images/12_21.png' },
+    { name: 'ヒールボール', src: 'images/12_22.png' },
+    { name: 'クイックボール', src: 'images/12_23.png' },
+    { name: 'ネストボール', src: 'images/12_24.png' },
+    { name: 'ダイブボール', src: 'images/12_25.png' },
+    { name: 'タイマーボール', src: 'images/12_26.png' },
+    { name: 'リピートボール', src: 'images/12_27.png' },
+    { name: 'ネットボール', src: 'images/12_28.png' },
+    { name: 'クリスタルボール', src: 'images/12_X1.png' },
+    { name: 'カーナのボール', src: 'images/12_X2.png' }
+  ];
+
+  // ==========================================
+  // 3. ベース素材のレイヤー設定
+  // ==========================================
+  const layers = [
+    { name: 'ベースカラー', src: 'images/01.png', colorable: true,  color: '#2C2C2C' },
+    { name: '素材 02', src: 'images/02.png', colorable: false },
+    { name: '上部ライン', src: 'images/03.png', colorable: true,  color: '#333333' },
+    { name: '外枠', src: 'images/04.png', colorable: true,  color: '#333333' },
+    { name: '素材 05', src: 'images/05.png', colorable: false },
+    { name: '写真枠サイズ', src: diff06[0].src, subDiff: diff06, colorable: false },
+    { name: '手持ちポケモン', isPokemonLayer: true },
+    { name: '項目言語', src: diff09[0].src, subDiff: diff09, colorable: false },
+    { name: 'TRAINER’s CARD文字色', src: 'images/10.png', colorable: true,  color: '#FFFFFF' },
+    { name: 'TRAINER’s CARDフチ色', src: 'images/11.png', colorable: true,  color: '#000000' },
+    { name: '素材 12', src: diff12[0].src, mainDiff: diff12, colorable: false },
+    { name: 'ボールライン', src: 'images/13.png', colorable: true,  color: '#FFFFFF' },
+    { name: 'ボールラインの外フチ', src: 'images/14.png', colorable: true,  color: '#000000' },
+    { name: 'ボールラインの内フチ', src: 'images/15.png', colorable: true,  color: '#000000' }
+  ];
+  // ==========================================
+  // 4. 状態管理＆合成エンジン（Pokémon HOME自動取得対応）
+  // ==========================================
+  const cache = {};
+  const maskBoundsCache = {};
+  let currentTrainerMaskSrc = diff06[0].maskSrc;
+  let chosenBadges = [];
+  let chosenPokemons = [
+    { dex: 0, shiny: false, female: false, flip: false, offsetX: 0, offsetY: 0, scale: 1.0 },
+    { dex: 0, shiny: false, female: false, flip: false, offsetX: 0, offsetY: 0, scale: 1.0 },
+    { dex: 0, shiny: false, female: false, flip: false, offsetX: 0, offsetY: 0, scale: 1.0 },
+    { dex: 0, shiny: false, female: false, flip: false, offsetX: 0, offsetY: 0, scale: 1.0 },
+    { dex: 0, shiny: false, female: false, flip: false, offsetX: 0, offsetY: 0, scale: 1.0 },
+    { dex: 0, shiny: false, female: false, flip: false, offsetX: 0, offsetY: 0, scale: 1.0 }
+  ];
+  let activeTarget = null; // 現在選択中の対象（{ type: 'trainer' } または { type: 'pokemon', index: 0〜5 }）
+  let showGizmo = true;
+  const trainer = { img: null, x: 2450, y: 1050, scale: 1.0, rotate: 0, brightness: 100, contrast: 100 };
+
+  // トレーナー情報の文字データ管理
+  const cardText = {
+    name: '',
+    birthplace: '',
+    region: '',
+    license: '',
+    issuer: '',
+    age: '',
+    sex: '',
+    birthday: '',
+    contact: ''
+  };
+
+  // 指定座標・固定フォント（Murecho Bold 700・黒固定・上下中央基準）で描画する関数
+  function drawCardTexts() {
+    ctx.save();
+    ctx.fillStyle = '#000000';
+    ctx.textBaseline = 'middle';
+
+    const putText = (text, x, y, weight, pxSize, align) => {
+      if (!text) return;
+      ctx.font = `${weight} ${pxSize}px "Murecho", sans-serif`;
+      ctx.textAlign = align;
+      ctx.fillText(text, x, y);
+    };
+
+    // ・名前（右揃え、Murecho Bold 700、X2907 Y160、サイズ97）
+    putText(cardText.name, 2907, 160, '700', 97, 'right');
+
+    // ・以下左揃え、Murecho Bold 700、サイズ68
+    putText(cardText.birthplace, 563, 349, '700', 68, 'left');
+    putText(cardText.region,     563, 467, '700', 68, 'left');
+    putText(cardText.license,    563, 585, '700', 68, 'left');
+    putText(cardText.issuer,     563, 703, '700', 68, 'left');
+    putText(cardText.age,       1611, 349, '700', 68, 'left');
+    putText(cardText.sex,       1611, 467, '700', 68, 'left');
+    putText(cardText.birthday,  1611, 585, '700', 68, 'left');
+
+    // ・フレンドコード、Xアカウントなど（中央揃え、Murecho Bold 700、X2520 Y349、サイズ68）
+    putText(cardText.contact,   2520, 349, '700', 68, 'center');
+
+    ctx.restore();
+  }
+
+
+  function loadImage(src) {
+    if (!src) return Promise.resolve(null);
+    if (cache[src]) return Promise.resolve(cache[src]);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { cache[src] = img; resolve(img); };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  // Pokémon HOME公式GitHubのURL生成（数字ID・模様/色フォルム文字列キー・色違い・♀メス姿に完全対応）
+  function getPokemonHomeUrl(poke) {
+    if (!poke || !poke.dex) return '';
+    const host = ['raw', 'github' + 'usercontent', 'com'].join('.');
+    const base = `https://${host}/PokeAPI/sprites/master/sprites/pokemon/other/home`;
+    if (poke.shiny && poke.female) return `${base}/shiny/female/${poke.dex}.png`;
+    if (poke.shiny) return `${base}/shiny/${poke.dex}.png`;
+    if (poke.female) return `${base}/female/${poke.dex}.png`;
+    return `${base}/${poke.dex}.png`;
+  }
+
+
+  function getMaskBounds(maskImg, key) {
+    if (maskBoundsCache[key]) return maskBoundsCache[key];
+    const off = document.createElement('canvas');
+    off.width = canvas.width;
+    off.height = canvas.height;
+    const offCtx = off.getContext('2d');
+    offCtx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+    const data = offCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0, found = false;
+    for (let y = 0; y < canvas.height; y += 4) {
+      for (let x = 0; x < canvas.width; x += 4) {
+        if (data[(y * canvas.width + x) * 4 + 3] > 10) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          found = true;
+        }
+      }
+    }
+    const bounds = found
+      ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
+      : { x: 0, y: 0, w: canvas.width, h: canvas.height };
+    maskBoundsCache[key] = bounds;
+    return bounds;
+  }
+
+  // ポケモンの現在位置とサイズ情報を計算するヘルパー関数
+  function getPokemonTransform(pokeImg, maskImg, maskKey, pokeState) {
+    const bounds = getMaskBounds(maskImg, maskKey);
+    const baseSize = Math.max(bounds.w, bounds.h) * 0.95;
+    const baseScale = Math.min(baseSize / pokeImg.width, baseSize / pokeImg.height);
+    const drawW = pokeImg.width * baseScale * pokeState.scale;
+    const drawH = pokeImg.height * baseScale * pokeState.scale;
+    const centerX = bounds.x + bounds.w / 2 + pokeState.offsetX;
+    const centerY = bounds.y + bounds.h / 2 + pokeState.offsetY;
+    return { centerX, centerY, drawW, drawH, bounds };
+  }
+
+  // マスク切り抜き用の作業キャンバスを1枚だけ用意して使い回す（6匹表示時の高速化）
+  const sharedMaskCanvas = document.createElement('canvas');
+  sharedMaskCanvas.width = 3033;
+  sharedMaskCanvas.height = 1914;
+  const sharedMaskCtx = sharedMaskCanvas.getContext('2d');
+
+  // ポケモン単体画像を拡大縮小・移動・左右反転した上で、08_a〜08_fの形でマスクする
+  function createMaskedPokemon(pokeImg, maskImg, maskKey, pokeState) {
+    if (!pokeImg || !maskImg) return null;
+    const { centerX, centerY, drawW, drawH } = getPokemonTransform(pokeImg, maskImg, maskKey, pokeState);
+
+    sharedMaskCtx.globalCompositeOperation = 'source-over';
+    sharedMaskCtx.clearRect(0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
+
+    sharedMaskCtx.drawImage(maskImg, 0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
+    sharedMaskCtx.globalCompositeOperation = 'source-in';
+
+    sharedMaskCtx.save();
+    sharedMaskCtx.translate(centerX, centerY);
+    if (pokeState.flip) sharedMaskCtx.scale(-1, 1); // 左右反転
+    sharedMaskCtx.drawImage(pokeImg, -drawW / 2, -drawH / 2, drawW, drawH);
+    sharedMaskCtx.restore();
+
+    return sharedMaskCanvas;
+  }
+
+  // 色塗り結果のキャッシュ（同じ色・同じ画像なら再計算せず高速表示）
+  const tintCache = new Map();
+
+  function tintImage(img, color) {
+    const key = img.src + '|' + color;
+    if (tintCache.has(key)) return tintCache.get(key);
+
+    const off = document.createElement('canvas');
+    off.width = canvas.width;
+    off.height = canvas.height;
+    const offCtx = off.getContext('2d');
+    offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    offCtx.globalCompositeOperation = 'source-in';
+    offCtx.fillStyle = color;
+    offCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (tintCache.size > 50) {
+      const firstKey = tintCache.keys().next().value;
+      tintCache.delete(firstKey);
+    }
+    tintCache.set(key, off);
+    return off;
+  }
+
+  function createMaskedTrainer(maskImg) {
+    if (!trainer.img || !maskImg) return null;
+    sharedMaskCtx.globalCompositeOperation = 'source-over';
+    sharedMaskCtx.clearRect(0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
+
+    sharedMaskCtx.drawImage(maskImg, 0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
+    sharedMaskCtx.globalCompositeOperation = 'source-in';
+
+    sharedMaskCtx.save();
+    sharedMaskCtx.filter = `brightness(${trainer.brightness}%) contrast(${trainer.contrast}%)`;
+    sharedMaskCtx.translate(trainer.x, trainer.y);
+    sharedMaskCtx.rotate((trainer.rotate * Math.PI) / 180);
+    sharedMaskCtx.scale(trainer.scale, trainer.scale);
+    sharedMaskCtx.drawImage(trainer.img, -trainer.img.width / 2, -trainer.img.height / 2);
+    sharedMaskCtx.restore();
+
+    return sharedMaskCanvas;
+  }
+
+  // 選択中の対象（トレーナー画像 または ポケモン1〜6匹目）に操作用ハンドルを描画
+  function drawTransformGizmo(pokeImgs, pokeMaskImgs) {
+    if (!showGizmo || !activeTarget) return;
+
+    // A. トレーナー画像が選択されている場合
+    if (activeTarget.type === 'trainer' && trainer.img) {
+      const hw = (trainer.img.width * trainer.scale) / 2;
+      const hh = (trainer.img.height * trainer.scale) / 2;
+
+      ctx.save();
+      ctx.translate(trainer.x, trainer.y);
+      ctx.rotate((trainer.rotate * Math.PI) / 180);
+
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 6;
+      ctx.setLineDash([15, 10]);
+      ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+      ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.moveTo(0, -hh);
+      ctx.lineTo(0, -hh - 90);
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, -hh - 90, 26, 0, Math.PI * 2);
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+
+    // B. ポケモンが選択されている場合（青い枠線＋四隅の拡大縮小ハンドル）
+    if (activeTarget.type === 'pokemon') {
+      const idx = activeTarget.index;
+      const pokeImg = pokeImgs[idx];
+      const maskImg = pokeMaskImgs[idx];
+      if (!pokeImg || !maskImg) return;
+
+      const { centerX, centerY, drawW, drawH } = getPokemonTransform(pokeImg, maskImg, pokemonMasks[idx], chosenPokemons[idx]);
+      const hw = drawW / 2;
+      const hh = drawH / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 5;
+      ctx.setLineDash([12, 8]);
+      ctx.strokeRect(-hw, -hh, drawW, drawH);
+      ctx.setLineDash([]);
+
+      [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+  }
+
+  async function render() {
+    const [imgs, maskImg, badgeImgs, pokeImgs, pokeMaskImgs] = await Promise.all([
+      Promise.all(layers.map(l => loadImage(l.src))),
+      loadImage(currentTrainerMaskSrc),
+      Promise.all(chosenBadges.map(b => loadImage(b.src))),
+      Promise.all(chosenPokemons.map(async (p) => {
+        if (!p.dex) return null;
+        if (p.female) {
+          const fImg = await loadImage(getPokemonHomeUrl(p));
+          if (fImg) return fImg;
+          return loadImage(getPokemonHomeUrl({ dex: p.dex, shiny: p.shiny, female: false }));
+        }
+        return loadImage(getPokemonHomeUrl(p));
+      })),
+      Promise.all(pokemonMasks.map(src => loadImage(src)))
+    ]);
+
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. ベース素材を描画
+    layers.forEach((layer, i) => {
+      if (layer.isPokemonLayer) {
+        for (let p = 0; p < 6; p++) {
+          const maskedPoke = createMaskedPokemon(pokeImgs[p], pokeMaskImgs[p], pokemonMasks[p], chosenPokemons[p]);
+          if (maskedPoke) ctx.drawImage(maskedPoke, 0, 0);
+        }
+        return;
+      }
+
+      if (!imgs[i]) return;
+      if (layer.colorable) {
+        ctx.drawImage(tintImage(imgs[i], layer.color), 0, 0);
+      } else {
+        ctx.drawImage(imgs[i], 0, 0, canvas.width, canvas.height);
+      }
+    });
+
+    // 2. ジムバッジ・勲章を描画
+    chosenBadges.forEach((badge, i) => {
+      const bImg = badgeImgs[i];
+      if (!bImg) return;
+      const bw = badge.width || 210;
+      const bh = badge.height || 210;
+      const slotCenterX = 362 + i * 300 + 105;
+      const slotCenterY = 1605 + 105;
+      ctx.drawImage(bImg, slotCenterX - bw / 2, slotCenterY - bh / 2, bw, bh);
+    });
+
+    // 2.5 トレーナー情報の文字＆性別画像を描画
+    drawCardTexts();
+
+    // 3. マスク処理したトレーナー画像を最前面に描画
+    if (trainer.img && maskImg) {
+      const maskedTrainer = createMaskedTrainer(maskImg);
+      if (maskedTrainer) ctx.drawImage(maskedTrainer, 0, 0);
+    }
+
+    // 4. 操作用ハンドルを描画
+    drawTransformGizmo(pokeImgs, pokeMaskImgs);
+  }
+
+  // ==========================================
+  // 5. マウスでの直感操作（トレーナー＆ポケモン6匹両対応）
+  // ==========================================
+  let dragMode = null;
+  let startMouse = { x: 0, y: 0 };
+  let startState = { x: 0, y: 0, scale: 1, rotate: 0, dist: 1, angle: 0 };
+
+  function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = canvas.width / rect.width;
+    return {
+      x: (e.clientX - rect.left) * ratio,
+      y: (e.clientY - rect.top) * ratio
+    };
+  }
+
+  function toLocalPos(px, py) {
+    const dx = px - trainer.x;
+    const dy = py - trainer.y;
+    const rad = (-trainer.rotate * Math.PI) / 180;
+    return {
+      x: dx * Math.cos(rad) - dy * Math.sin(rad),
+      y: dx * Math.sin(rad) + dy * Math.cos(rad)
+    };
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const pos = getCanvasPos(e);
+
+    // 1. 手持ちポケモン6匹の枠（または拡大縮小ハンドル）がクリックされたかチェック
+    for (let p = 5; p >= 0; p--) {
+      const pState = chosenPokemons[p];
+      if (!pState.dex) continue;
+      const pUrl = getPokemonHomeUrl(pState);
+      const baseUrl = getPokemonHomeUrl({ dex: pState.dex, shiny: pState.shiny, female: false });
+      const pokeImg = cache[pUrl] || cache[baseUrl];
+      const maskImg = cache[pokemonMasks[p]];
+      if (!pokeImg || !maskImg) continue;
+
+      const { centerX, centerY, drawW, drawH, bounds } = getPokemonTransform(pokeImg, maskImg, pokemonMasks[p], pState);
+      const hw = drawW / 2;
+      const hh = drawH / 2;
+      const lx = pos.x - centerX;
+      const ly = pos.y - centerY;
+
+      // 四隅の青い丸（拡大縮小ハンドル）をクリックした場合
+      if (activeTarget && activeTarget.type === 'pokemon' && activeTarget.index === p) {
+        if ([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].some(([cx, cy]) => Math.hypot(lx - cx, ly - cy) < 50)) {
+          dragMode = 'poke-scale';
+          startMouse = pos;
+          startState = { x: pState.offsetX, y: pState.offsetY, scale: pState.scale, dist: Math.hypot(lx, ly) || 1 };
+          render();
+          return;
+        }
+      }
+
+      // ポケモンの枠内または画像内をクリックした場合（移動モード）
+      const inBounds = (pos.x >= bounds.x && pos.x <= bounds.x + bounds.w && pos.y >= bounds.y && pos.y <= bounds.y + bounds.h);
+      const inImage = (Math.abs(lx) <= hw && Math.abs(ly) <= hh);
+      if (inBounds || (activeTarget && activeTarget.type === 'pokemon' && activeTarget.index === p && inImage)) {
+        activeTarget = { type: 'pokemon', index: p };
+        dragMode = 'poke-move';
+        startMouse = pos;
+        startState = { x: pState.offsetX, y: pState.offsetY, scale: pState.scale, dist: 1 };
+        render();
+        return;
+      }
+    }
+
+    // 2. トレーナー画像がクリックされたかチェック
+    if (trainer.img) {
+      const local = toLocalPos(pos.x, pos.y);
+      const hw = (trainer.img.width * trainer.scale) / 2;
+      const hh = (trainer.img.height * trainer.scale) / 2;
+
+      if (Math.hypot(local.x - 0, local.y - (-hh - 90)) < 55) {
+        activeTarget = { type: 'trainer' };
+        dragMode = 'rotate';
+      } else if (
+        Math.hypot(local.x - (-hw), local.y - (-hh)) < 55 ||
+        Math.hypot(local.x - hw, local.y - (-hh)) < 55 ||
+        Math.hypot(local.x - hw, local.y - hh) < 55 ||
+        Math.hypot(local.x - (-hw), local.y - hh) < 55
+      ) {
+        activeTarget = { type: 'trainer' };
+        dragMode = 'scale';
+      } else if (Math.abs(local.x) <= hw + 30 && Math.abs(local.y) <= hh + 30) {
+        activeTarget = { type: 'trainer' };
+        dragMode = 'move';
+      }
+
+      if (dragMode) {
+        startMouse = pos;
+        startState = {
+          x: trainer.x,
+          y: trainer.y,
+          scale: trainer.scale,
+          rotate: trainer.rotate,
+          dist: Math.hypot(pos.x - trainer.x, pos.y - trainer.y),
+          angle: Math.atan2(pos.y - trainer.y, pos.x - trainer.x)
+        };
+        render();
+        return;
+      }
+    }
+
+    // 何もない場所をクリックしたら選択枠を解除
+    activeTarget = null;
+    render();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    const pos = getCanvasPos(e);
+
+    if (!dragMode) {
+      // トレーナー画像選択中のカーソルアイコン変更
+      if (trainer.img && activeTarget?.type === 'trainer') {
+        const local = toLocalPos(pos.x, pos.y);
+        const hw = (trainer.img.width * trainer.scale) / 2;
+        const hh = (trainer.img.height * trainer.scale) / 2;
+        if (Math.hypot(local.x, local.y - (-hh - 90)) < 55) {
+          canvas.style.cursor = 'crosshair';
+        } else if ([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].some(([cx, cy]) => Math.hypot(local.x - cx, local.y - cy) < 55)) {
+          canvas.style.cursor = 'nwse-resize';
+        } else if (Math.abs(local.x) <= hw && Math.abs(local.y) <= hh) {
+          canvas.style.cursor = 'grab';
+        } else {
+          canvas.style.cursor = 'default';
+        }
+      } else {
+        canvas.style.cursor = 'default';
+      }
+      return;
+    }
+
+    if (dragMode === 'poke-move' && activeTarget?.type === 'pokemon') {
+      const pState = chosenPokemons[activeTarget.index];
+      pState.offsetX = startState.x + (pos.x - startMouse.x);
+      pState.offsetY = startState.y + (pos.y - startMouse.y);
+    } else if (dragMode === 'poke-scale' && activeTarget?.type === 'pokemon') {
+      const pState = chosenPokemons[activeTarget.index];
+      const pUrl = getPokemonHomeUrl(pState);
+      const baseUrl = getPokemonHomeUrl({ dex: pState.dex, shiny: pState.shiny, female: false });
+      const pokeImg = cache[pUrl] || cache[baseUrl];
+      const maskImg = cache[pokemonMasks[activeTarget.index]];
+      if (pokeImg && maskImg) {
+        const bounds = getMaskBounds(maskImg, pokemonMasks[activeTarget.index]);
+        const centerX = bounds.x + bounds.w / 2 + pState.offsetX;
+        const centerY = bounds.y + bounds.h / 2 + pState.offsetY;
+        const currentDist = Math.hypot(pos.x - centerX, pos.y - centerY);
+        pState.scale = Math.max(0.2, Math.min(4.0, startState.scale * (currentDist / startState.dist)));
+      }
+    } else if (dragMode === 'move') {
+      trainer.x = startState.x + (pos.x - startMouse.x);
+      trainer.y = startState.y + (pos.y - startMouse.y);
+    } else if (dragMode === 'scale') {
+      const currentDist = Math.hypot(pos.x - trainer.x, pos.y - trainer.y);
+      const newScale = Math.max(0.1, Math.min(3.0, startState.scale * (currentDist / startState.dist)));
+      trainer.scale = newScale;
+      document.getElementById('scaleSlider').value = newScale.toFixed(2);
+    } else if (dragMode === 'rotate') {
+      const currentAngle = Math.atan2(pos.y - trainer.y, pos.x - trainer.x);
+      const diffDeg = ((currentAngle - startState.angle) * 180) / Math.PI;
+      let newDeg = Math.round(startState.rotate + diffDeg);
+      if (e.shiftKey) {
+        newDeg = Math.round(newDeg / 45) * 45;
+      }
+      if (newDeg > 180) newDeg -= 360;
+      if (newDeg < -180) newDeg += 360;
+      trainer.rotate = newDeg;
+      document.getElementById('rotateSlider').value = newDeg;
+    }
+
+    render();
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragMode = null;
+  });
+
+  // プレビュー画像（canvas）の外側をクリックしたら、青い点線枠（選択状態）を解除する
+  window.addEventListener('mousedown', (e) => {
+    if (e.target !== canvas && activeTarget !== null) {
+      activeTarget = null;
+      render();
+    }
+  });
+
+
+  // ==========================================
+  // 6. 各種UI構築（トレーナー・ポケモン・バッジ・パーツ・色・ボール）
+  // ==========================================
+  document.getElementById('trainerUpload').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        trainer.img = img;
+        trainer.scale = Math.min(1000 / img.width, 1000 / img.height, 1.2);
+        trainer.rotate = 0;
+        activeTarget = { type: 'trainer' };
+        document.getElementById('scaleSlider').value = trainer.scale.toFixed(2);
+        document.getElementById('rotateSlider').value = 0;
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+
+  document.getElementById('scaleSlider').oninput = (e) => { trainer.scale = parseFloat(e.target.value); render(); };
+  document.getElementById('rotateSlider').oninput = (e) => { trainer.rotate = parseFloat(e.target.value); render(); };
+  document.getElementById('resetTrainerBtn').onclick = () => {
+    trainer.x = 2450; trainer.y = 1050; trainer.scale = 1.0; trainer.rotate = 0;
+    document.getElementById('scaleSlider').value = 1.0;
+    document.getElementById('rotateSlider').value = 0;
+    render();
+  };
+
+  // トレーナー画像の明るさ・コントラスト調整（スライダー ⇔ ▲▼数値入力 相互連動）
+  const bSlider = document.getElementById('brightnessSlider');
+  const bNum = document.getElementById('brightnessNum');
+  const cSlider = document.getElementById('contrastSlider');
+  const cNum = document.getElementById('contrastNum');
+
+  function updateBrightness(val) {
+    const v = Math.max(0, Math.min(200, parseInt(val, 10) || 0));
+    trainer.brightness = v;
+    bSlider.value = v;
+    bNum.value = v;
+    render();
+  }
+
+  function updateContrast(val) {
+    const v = Math.max(0, Math.min(200, parseInt(val, 10) || 0));
+    trainer.contrast = v;
+    cSlider.value = v;
+    cNum.value = v;
+    render();
+  }
+
+  bSlider.oninput = (e) => updateBrightness(e.target.value);
+  bNum.oninput = (e) => updateBrightness(e.target.value);
+  cSlider.oninput = (e) => updateContrast(e.target.value);
+  cNum.oninput = (e) => updateContrast(e.target.value);
+
+  document.getElementById('resetFilterBtn').onclick = () => {
+    updateBrightness(100);
+    updateContrast(100);
+  };
+
+  // 手持ちポケモン6匹すべての位置・サイズをまとめてリセットするボタン
+  document.getElementById('resetAllPokemonBtn').onclick = () => {
+    chosenPokemons.forEach(p => {
+      p.offsetX = 0;
+      p.offsetY = 0;
+      p.scale = 1.0;
+    });
+    render();
+  };
+
+
+  // 手持ちポケモン6匹の選択UI（全1025匹＋全フォルム・模様・色違い姿に完全対応）
+  async function initPokemonUI() {
+    const area = document.getElementById('pokemonSelectArea');
+    area.innerHTML = '';
+
+    const allPokemon = [];
+    for (let n = 1; n <= 1025; n++) {
+      allPokemon.push({
+        speciesId: n,
+        name: `No.${String(n).padStart(4, '0')}`,
+        forms: [{ id: String(n), formName: '通常のすがた' }]
+      });
+    }
+
+    const formToSpecies = new Map();
+    for (let n = 1; n <= 1025; n++) formToSpecies.set(String(n), n);
+
+    const slotUpdaters = [];
+
+    for (let i = 0; i < 6; i++) {
+      const box = document.createElement('div');
+      box.className = 'box';
+      box.style.flexDirection = 'column';
+      box.style.alignItems = 'stretch';
+      box.style.gap = '6px';
+
+      box.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+          <span style="font-weight:bold;">${i + 1}匹目</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label style="font-size:11px; display:flex; align-items:center; gap:2px; cursor:pointer;">
+              <input type="checkbox" class="shiny-chk">✨色違い
+            </label>
+            <label style="font-size:11px; display:flex; align-items:center; gap:2px; cursor:pointer;">
+              <input type="checkbox" class="female-chk">♀メス
+            </label>
+            <label style="font-size:11px; display:flex; align-items:center; gap:2px; cursor:pointer;">
+              <input type="checkbox" class="flip-chk">↔反転
+            </label>
+            <button type="button" class="reset-poke-btn" style="padding:2px 6px; font-size:11px; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer;" title="位置とサイズを初期値に戻す">↺</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:4px;">
+          <input type="text" class="search-inp" placeholder="名前や番号で絞り込み" style="width:45%; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+          <select class="poke-sel" style="width:55%; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px;"></select>
+        </div>
+        <div class="form-row" style="display:none; align-items:center; gap:4px;">
+          <span style="font-size:11px; color:#475569; white-space:nowrap;">姿・フォルム：</span>
+          <select class="form-sel" style="width:100%; padding:3px 6px; border:1px solid #93c5fd; background:#f0f9ff; border-radius:4px; font-size:12px;"></select>
+        </div>
+      `;
+
+      const searchInp = box.querySelector('.search-inp');
+      const select = box.querySelector('.poke-sel');
+      const formRow = box.querySelector('.form-row');
+      const formSelect = box.querySelector('.form-sel');
+      const shinyCheck = box.querySelector('.shiny-chk');
+      const femaleCheck = box.querySelector('.female-chk');
+      const flipCheck = box.querySelector('.flip-chk');
+      const resetBtn = box.querySelector('.reset-poke-btn');
+
+      function updateFormDropdown(speciesId) {
+        const entry = allPokemon.find(p => p.speciesId === speciesId);
+        if (!entry || entry.forms.length <= 1) {
+          formRow.style.display = 'none';
+          formSelect.innerHTML = '';
+          return;
+        }
+        formRow.style.display = 'flex';
+        formSelect.innerHTML = '';
+        const currentDex = String(chosenPokemons.at(i).dex || '');
+        entry.forms.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.formName;
+          if (f.id === currentDex) opt.selected = true;
+          formSelect.appendChild(opt);
+        });
+      }
+
+      function updateSelectOptions() {
+        const currentDex = String(chosenPokemons.at(i).dex || '');
+        const currentSpeciesId = formToSpecies.get(currentDex) || 0;
+        const kw = searchInp.value.trim().toLowerCase();
+        select.innerHTML = '<option value="0">（なし）</option>';
+        allPokemon.forEach(p => {
+          const matchMain = p.name.toLowerCase().includes(kw);
+          const matchForm = p.forms.some(f => f.formName.toLowerCase().includes(kw));
+          if (!kw || matchMain || matchForm) {
+            const opt = document.createElement('option');
+            opt.value = p.speciesId;
+            opt.textContent = p.forms.length > 1 ? `${p.name} ★` : p.name;
+            if (p.speciesId === currentSpeciesId) opt.selected = true;
+            select.appendChild(opt);
+          }
+        });
+        updateFormDropdown(currentSpeciesId);
+      }
+
+      slotUpdaters.push(updateSelectOptions);
+      updateSelectOptions();
+
+      searchInp.oninput = () => {
+        updateSelectOptions();
+        if (select.options.length === 2) {
+          select.selectedIndex = 1;
+          const spId = parseInt(select.value, 10) || 0;
+          const entry = allPokemon.find(p => p.speciesId === spId);
+          chosenPokemons.at(i).dex = entry ? entry.forms.at(0).id : 0;
+          updateFormDropdown(spId);
+          activeTarget = { type: 'pokemon', index: i };
+          render();
+        }
+      };
+
+      select.onchange = () => {
+        const spId = parseInt(select.value, 10) || 0;
+        const entry = allPokemon.find(p => p.speciesId === spId);
+        chosenPokemons.at(i).dex = entry ? entry.forms.at(0).id : 0;
+        updateFormDropdown(spId);
+        activeTarget = spId ? { type: 'pokemon', index: i } : null;
+        render();
+      };
+
+      formSelect.onchange = () => {
+        chosenPokemons.at(i).dex = formSelect.value || 0;
+        activeTarget = chosenPokemons.at(i).dex ? { type: 'pokemon', index: i } : null;
+        render();
+      };
+
+      shinyCheck.onchange = () => { chosenPokemons.at(i).shiny = shinyCheck.checked; render(); };
+      femaleCheck.onchange = () => { chosenPokemons.at(i).female = femaleCheck.checked; render(); };
+      flipCheck.onchange = () => { chosenPokemons.at(i).flip = flipCheck.checked; render(); };
+      resetBtn.onclick = () => {
+        chosenPokemons.at(i).offsetX = 0;
+        chosenPokemons.at(i).offsetY = 0;
+        chosenPokemons.at(i).scale = 1.0;
+        render();
+      };
+
+      area.appendChild(box);
+    }
+
+    // PokéAPI公式GitHubのCSVから全1025匹の日本語名＋全フォルム（見た目違い含む）を一括取得
+    try {
+      const host = ['raw', 'github' + 'usercontent', 'com'].join('.');
+      const baseCsv = `https://${host}/PokeAPI/pokeapi/master/data/v2/csv`;
+
+      const [speciesRes, pokemonRes, formsRes, formNamesRes] = await Promise.all([
+        fetch(`${baseCsv}/pokemon_species_names.csv`),
+        fetch(`${baseCsv}/pokemon.csv`),
+        fetch(`${baseCsv}/pokemon_forms.csv`),
+        fetch(`${baseCsv}/pokemon_form_names.csv`)
+      ]);
+
+      const [speciesText, pokemonText, formsText, formNamesText] = await Promise.all([
+        speciesRes.text(),
+        pokemonRes.text(),
+        formsRes.text(),
+        formNamesRes.text()
+      ]);
+
+      // 1. 基本種族名（langId === 11: 日本語）
+      speciesText.split(/\r?\n/).slice(1).forEach(line => {
+        if (!line) return;
+        const parts = line.split(',');
+        const speciesId = Number(parts.shift());
+        const langId = Number(parts.shift());
+        const pokeName = parts.join(',').trim();
+        const entry = allPokemon.find(p => p.speciesId === speciesId);
+        if (langId === 11 && entry) {
+          entry.name = `${String(speciesId).padStart(4, '0')} ${pokeName}`;
+        }
+      });
+
+      // 2. pokemon.csv（列順: id, identifier, species_id, ...）
+      const pokemonIdToSpecies = new Map();
+      const pokemonIdIsDefault = new Map();
+      pokemonText.split(/\r?\n/).slice(1).forEach(line => {
+        if (!line) return;
+        const parts = line.split(',');
+        const pokeId = Number(parts.shift());
+        parts.shift(); // identifier
+        const speciesId = Number(parts.shift());
+        parts.shift(); // height
+        parts.shift(); // weight
+        parts.shift(); // base_experience
+        parts.shift(); // order
+        const isDefault = (parts.shift() || '').trim() === '1';
+
+        if (pokeId && speciesId >= 1 && speciesId <= 1025) {
+          pokemonIdToSpecies.set(pokeId, speciesId);
+          pokemonIdIsDefault.set(pokeId, isDefault);
+          formToSpecies.set(String(pokeId), speciesId);
+        }
+      });
+
+      // 3. pokemon_form_names.csv（列順: pokemon_form_id, local_language_id, form_name, pokemon_name）
+      const formIdToJpName = new Map();
+      formNamesText.split(/\r?\n/).slice(1).forEach(line => {
+        if (!line) return;
+        const parts = line.split(',');
+        const formId = Number(parts.shift());
+        const langId = Number(parts.shift());
+        const formName = (parts.shift() || '').trim();
+        const fullFormName = parts.join(',').trim();
+        if (langId === 11 && formId) {
+          formIdToJpName.set(formId, formName || fullFormName);
+        }
+      });
+
+      // 4. pokemon_forms.csv（見た目だけのフォルム違いも含めてすべて構築）
+      const speciesFormsMap = new Map();
+      formsText.split(/\r?\n/).slice(1).forEach(line => {
+        if (!line) return;
+        const parts = line.split(',');
+        const formId = Number(parts.shift());
+        const identifier = (parts.shift() || '').trim();
+        const formIdentifier = (parts.shift() || '').trim();
+        const pokeId = Number(parts.shift());
+        parts.shift(); // version_group_id
+        const isDefaultForm = (parts.shift() || '').trim() === '1';
+
+        const speciesId = pokemonIdToSpecies.get(pokeId);
+        if (!speciesId) return;
+
+        // HOME画像のファイル名キーを決定：
+        // デフォルトのpokemon_idに紐づく追加フォーム（ビビヨン・アンノーン・フラベベ・カラナクシ・アルセウス・シキジカ等）は
+        // 「speciesId-formIdentifier」（例: 666-icy-snow, 201-b, 422-east）になる
+        const isDefaultPoke = pokemonIdIsDefault.get(pokeId);
+        let spriteKey = String(pokeId);
+        if (isDefaultPoke && !isDefaultForm && formIdentifier) {
+          spriteKey = `${speciesId}-${formIdentifier}`;
+        }
+
+        formToSpecies.set(spriteKey, speciesId);
+
+        if (!speciesFormsMap.has(speciesId)) speciesFormsMap.set(speciesId, new Map());
+        const pMap = speciesFormsMap.get(speciesId);
+        if (pMap.has(spriteKey)) return;
+
+        let label = formIdToJpName.get(formId) || '';
+        if (!label) {
+          if (isDefaultForm && isDefaultPoke) {
+            label = '通常のすがた';
+          } else {
+            const rawSuffix = formIdentifier || identifier.replace(/^[^-]+-/, '');
+            label = rawSuffix || `フォルム (${spriteKey})`;
+          }
+        }
+        pMap.set(spriteKey, {
+          id: spriteKey,
+          formName: label,
+          isDefault: isDefaultForm && isDefaultPoke
+        });
+      });
+
+      speciesFormsMap.forEach((pMap, speciesId) => {
+        const list = Array.from(pMap.values());
+        list.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+        const entry = allPokemon.find(p => p.speciesId === speciesId);
+        if (entry && list.length > 0) {
+          entry.forms = list;
+        }
+      });
+
+      slotUpdaters.forEach(fn => fn());
+    } catch (e) {
+      console.warn('ポケモン・フォルム名CSVの取得に失敗しました:', e);
+    }
+  }
+
+  function updateBadgeUI() {
+    const slotsArea = document.getElementById('badgeSlotsArea');
+    slotsArea.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+      const b = chosenBadges[i];
+      const slot = document.createElement('div');
+      slot.className = 'badge-slot';
+      if (b) {
+        slot.innerHTML = `
+          <div>${i + 1}枠目</div>
+          <img src="${b.src}" alt="">
+          <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.name}</div>
+          <div class="badge-slot-btns">
+            <button data-act="left" ${i === 0 ? 'disabled' : ''}>←</button>
+            <button data-act="right" ${i === chosenBadges.length - 1 ? 'disabled' : ''}>→</button>
+            <button data-act="del" style="color:#d00;">×</button>
+          </div>
+        `;
+        slot.querySelector('[data-act="left"]').onclick = () => {
+          [chosenBadges[i], chosenBadges[i - 1]] = [chosenBadges[i - 1], chosenBadges[i]];
+          updateBadgeUI(); render();
+        };
+        slot.querySelector('[data-act="right"]').onclick = () => {
+          [chosenBadges[i], chosenBadges[i + 1]] = [chosenBadges[i + 1], chosenBadges[i]];
+          updateBadgeUI(); render();
+        };
+        slot.querySelector('[data-act="del"]').onclick = () => {
+          chosenBadges.splice(i, 1);
+          updateBadgeUI(); render();
+        };
+      } else {
+        slot.innerHTML = `<div>${i + 1}枠目</div><div style="height:64px; display:grid; place-items:center; color:#aaa;">空き</div>`;
+      }
+      slotsArea.appendChild(slot);
+    }
+  }
+
+  badgeList.forEach(badge => {
+    const item = document.createElement('div');
+    item.className = 'badge-item';
+    item.innerHTML = `<img src="${badge.src}" alt=""><div>${badge.name}</div>`;
+    item.onclick = () => {
+      if (chosenBadges.length >= 8) {
+        alert('バッジは最大8個まで選択できます');
+        return;
+      }
+      chosenBadges.push(badge);
+      updateBadgeUI();
+      render();
+    };
+    document.getElementById('badgeCatalogArea').appendChild(item);
+  });
+
+  document.getElementById('clearBadgesBtn').onclick = () => {
+    chosenBadges = [];
+    updateBadgeUI();
+    render();
+  };
+  layers.filter(l => l.subDiff).forEach(layer => {
+    const div = document.createElement('div');
+    div.className = 'box';
+    div.innerHTML = `<span>${layer.name}</span><div></div>`;
+    layer.subDiff.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'btn' + (idx === 0 ? ' active' : '');
+      btn.textContent = opt.name;
+      btn.style.marginLeft = '5px';
+      btn.onclick = () => {
+        div.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        layer.src = opt.src;
+        if (opt.maskSrc) currentTrainerMaskSrc = opt.maskSrc;
+        render();
+      };
+      div.querySelector('div').appendChild(btn);
+    });
+    document.getElementById('subDiffArea').appendChild(div);
+  });
+
+  // 色変換ヘルパー（HEX ⇔ RGB ⇔ HSL）
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    return {
+      r: parseInt(clean.substring(0, 2), 16) || 0,
+      g: parseInt(clean.substring(2, 4), 16) || 0,
+      b: parseInt(clean.substring(4, 6), 16) || 0
+    };
+  }
+
+  function rgbToHex(r, g, b) {
+    const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+    return '#' + [clamp(r), clamp(g), clamp(b)].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+
+  function hslToRgb(h, s, l) {
+    h = ((h % 360) + 360) % 360 / 360;
+    s = Math.max(0, Math.min(100, s)) / 100;
+    l = Math.max(0, Math.min(100, l)) / 100;
+    let r, g, b;
+    if (s === 0) {
+      r = g = b = l;
+    } else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+  }
+
+  // 色変更UI構築（カラーピッカー ＋ 1ずつ増減できる▲▼矢印付きRGB/HSL数値入力）
+  let colorInputMode = 'RGB';
+  const colorUpdaters = [];
+
+  layers.filter(l => l.colorable).forEach(layer => {
+    const div = document.createElement('div');
+    div.className = 'box';
+    div.style.flexDirection = 'column';
+    div.style.alignItems = 'stretch';
+    div.style.gap = '6px';
+
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold;">${layer.name}</span>
+        <input type="color" class="c-picker" value="${layer.color}">
+      </div>
+      <div class="c-nums" style="display:flex; gap:6px; justify-content:space-between; font-size:11px;">
+        <label style="display:flex; align-items:center; gap:2px; flex:1;">
+          <span class="lbl-1" style="font-weight:bold; width:14px;">R</span>
+          <input type="number" class="inp-1" step="1" style="width:100%; padding:3px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+        </label>
+        <label style="display:flex; align-items:center; gap:2px; flex:1;">
+          <span class="lbl-2" style="font-weight:bold; width:14px;">G</span>
+          <input type="number" class="inp-2" step="1" style="width:100%; padding:3px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+        </label>
+        <label style="display:flex; align-items:center; gap:2px; flex:1;">
+          <span class="lbl-3" style="font-weight:bold; width:14px;">B</span>
+          <input type="number" class="inp-3" step="1" style="width:100%; padding:3px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+        </label>
+      </div>
+    `;
+
+    const picker = div.querySelector('.c-picker');
+    const lbl1 = div.querySelector('.lbl-1'), lbl2 = div.querySelector('.lbl-2'), lbl3 = div.querySelector('.lbl-3');
+    const inp1 = div.querySelector('.inp-1'), inp2 = div.querySelector('.inp-2'), inp3 = div.querySelector('.inp-3');
+
+    function syncInputsFromLayer() {
+      picker.value = layer.color;
+      const rgb = hexToRgb(layer.color);
+      if (colorInputMode === 'RGB') {
+        lbl1.textContent = 'R'; lbl2.textContent = 'G'; lbl3.textContent = 'B';
+        inp1.min = 0; inp1.max = 255; inp1.value = rgb.r;
+        inp2.min = 0; inp2.max = 255; inp2.value = rgb.g;
+        inp3.min = 0; inp3.max = 255; inp3.value = rgb.b;
+      } else {
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        lbl1.textContent = 'H'; lbl2.textContent = 'S'; lbl3.textContent = 'L';
+        inp1.min = 0; inp1.max = 360; inp1.value = hsl.h;
+        inp2.min = 0; inp2.max = 100; inp2.value = hsl.s;
+        inp3.min = 0; inp3.max = 100; inp3.value = hsl.l;
+      }
+    }
+
+    function applyFromInputs() {
+      const v1 = parseInt(inp1.value, 10) || 0;
+      const v2 = parseInt(inp2.value, 10) || 0;
+      const v3 = parseInt(inp3.value, 10) || 0;
+      if (colorInputMode === 'RGB') {
+        layer.color = rgbToHex(v1, v2, v3);
+      } else {
+        const rgb = hslToRgb(v1, v2, v3);
+        layer.color = rgbToHex(rgb.r, rgb.g, rgb.b);
+      }
+      picker.value = layer.color;
+      render();
+    }
+
+    picker.oninput = (e) => {
+      layer.color = e.target.value.toUpperCase();
+      syncInputsFromLayer();
+      render();
+    };
+
+    [inp1, inp2, inp3].forEach(inp => { inp.oninput = applyFromInputs; });
+
+    colorUpdaters.push(syncInputsFromLayer);
+    syncInputsFromLayer();
+    document.getElementById('colorArea').appendChild(div);
+  });
+
+  document.getElementById('modeRgbBtn').onclick = () => {
+    colorInputMode = 'RGB';
+    document.getElementById('modeRgbBtn').classList.add('active');
+    document.getElementById('modeHslBtn').classList.remove('active');
+    colorUpdaters.forEach(fn => fn());
+  };
+  document.getElementById('modeHslBtn').onclick = () => {
+    colorInputMode = 'HSL';
+    document.getElementById('modeHslBtn').classList.add('active');
+    document.getElementById('modeRgbBtn').classList.remove('active');
+    colorUpdaters.forEach(fn => fn());
+  };
+
+  // 初期カラーを保存しておき、「色をリセット」ボタンで一括復元する
+  layers.forEach(l => {
+    if (l.colorable && !l.defaultColor) {
+      l.defaultColor = l.color;
+    }
+  });
+
+  document.getElementById('resetColorsBtn').onclick = () => {
+    layers.forEach(l => {
+      if (l.colorable && l.defaultColor) {
+        l.color = l.defaultColor;
+      }
+    });
+    colorUpdaters.forEach(fn => fn());
+    render();
+  };
+
+  const layer12 = layers.find(l => l.mainDiff);
+  diff12.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (idx === 0 ? ' active' : '');
+    btn.textContent = opt.name;
+    btn.onclick = () => {
+      document.getElementById('mainDiffArea').querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      layer12.src = opt.src;
+      render();
+    };
+    document.getElementById('mainDiffArea').appendChild(btn);
+  });
+
+  // 累計保存カウンターの取得＆カウントアップ（無料CounterAPI使用）
+  const COUNTER_NAMESPACE = 'trainers-card-studio-jp';
+  const COUNTER_KEY = 'saved-cards';
+
+  async function loadSaveCount() {
+    const el = document.getElementById('saveCounterNum');
+    if (!el) return;
+    try {
+      const res = await fetch(`https://counterapi.dev{COUNTER_NAMESPACE}/${COUNTER_KEY}/`);
+      if (!res.ok) {
+        el.textContent = '0';
+        return;
+      }
+      const data = await res.json();
+      el.textContent = (data.count || 0).toLocaleString();
+    } catch (e) {
+      el.textContent = '-';
+    }
+  }
+
+  async function incrementSaveCount() {
+    // 同じ人がテストや微調整で何度も保存したときの重複カウントを防止
+    if (sessionStorage.getItem('tcs_counted')) return;
+    sessionStorage.setItem('tcs_counted', '1');
+    try {
+      const res = await fetch(`https://counterapi.dev{COUNTER_NAMESPACE}/${COUNTER_KEY}/up`);
+      const data = await res.json();
+      const el = document.getElementById('saveCounterNum');
+      if (el && typeof data.count === 'number') {
+        el.textContent = data.count.toLocaleString();
+      }
+    } catch (e) {
+      // 通信エラー時は無視して画像保存を優先
+    }
+  }
+
+  loadSaveCount();
+
+  document.getElementById('downloadBtn').onclick = async () => {
+    showGizmo = false;
+    await render();
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'trainer-card.png';
+    a.click();
+    showGizmo = true;
+    render();
+    incrementSaveCount();
+  };
+
+  // X（旧Twitter）で画像を共有する（1.画像コピー＆案内表示 → 2.X投稿画面へ移動）
+  document.getElementById('shareXBtn').onclick = async () => {
+    const shareBtn = document.getElementById('shareXBtn');
+    const shareBox = document.getElementById('xShareBox');
+    const shareMsg = document.getElementById('xShareMsg');
+    const goToXLink = document.getElementById('goToXLink');
+
+    shareBtn.textContent = '画像を準備中...';
+    shareBtn.disabled = true;
+
+    showGizmo = false;
+    await render();
+
+    canvas.toBlob(async (blob) => {
+      showGizmo = true;
+      render();
+      shareBtn.textContent = '𝕏 で画像を共有する';
+      shareBtn.disabled = false;
+
+      if (!blob) return;
+
+      // クリップボードへ画像をコピー（非対応ブラウザの場合は自動でダウンロード）
+      let copied = false;
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          copied = true;
+        }
+      } catch (e) {
+        copied = false;
+      }
+
+      if (!copied) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'trainer-card.png';
+        a.click();
+        shareMsg.textContent = '✅ トレーナーカードの画像を保存しました！';
+      } else {
+        shareMsg.textContent = '✅ トレーナーカードを画像としてコピーしました！';
+      }
+
+      // Xの投稿画面URLを組み立ててリンクに設定（本番公開後は自動でサイトURLも入る）
+      const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.protocol === 'file:';
+      const siteUrl = (!isLocal && window.location.href.startsWith('http')) ? window.location.href.replace(/maker\.html.*$/, '') : '';
+      const postBody = 'トレーナーカードスタジオでトレーナーカードを制作！\n#トレーナーカードスタジオ #TrainersCardStudio\n' + siteUrl;
+
+      const domain = ['x', 'com'].join('.');
+      goToXLink.href = `https://${domain}/intent/tweet?text=${encodeURIComponent(postBody)}`;
+
+      // 案内ボックスを表示
+      shareBox.style.display = 'block';
+            // 案内ボックスを表示
+      shareBox.style.display = 'block';
+      incrementSaveCount();
+    }, 'image/png');
+  };
+
+  // トレーナー情報（文字・性別・ライセンス・連絡先）の入力連動
+  document.getElementById('txtName').oninput = (e) => { cardText.name = e.target.value; render(); };
+  document.getElementById('txtBirthplace').oninput = (e) => { cardText.birthplace = e.target.value; render(); };
+  document.getElementById('txtRegion').oninput = (e) => { cardText.region = e.target.value; render(); };
+  document.getElementById('selLicense').onchange = (e) => {
+    cardText.license = e.target.value;
+    document.getElementById('txtLicense').value = e.target.value;
+    render();
+  };
+  document.getElementById('txtLicense').oninput = (e) => { cardText.license = e.target.value; render(); };
+  document.getElementById('txtIssuer').oninput = (e) => { cardText.issuer = e.target.value; render(); };
+  document.getElementById('txtAge').oninput = (e) => { cardText.age = e.target.value; render(); };
+  document.getElementById('selSex').onchange = (e) => {
+    cardText.sex = e.target.value;
+    document.getElementById('txtSex').value = e.target.value;
+    render();
+  };
+  document.getElementById('txtSex').oninput = (e) => { cardText.sex = e.target.value; render(); };
+  document.getElementById('txtBirthday').oninput = (e) => { cardText.birthday = e.target.value; render(); };
+  document.getElementById('txtContact').oninput = (e) => { cardText.contact = e.target.value; render(); };
+
+  initPokemonUI();
+  updateBadgeUI();
+  render();
+</script>
+</body>
+</html>
