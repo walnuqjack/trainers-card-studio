@@ -1943,9 +1943,15 @@
   }
 
   async function incrementSaveCount() {
-    // 同じ人がテストや微調整で何度も保存したときの重複カウントを防止
-    if (sessionStorage.getItem('tcs_counted')) return;
-    sessionStorage.setItem('tcs_counted', '1');
+    // プロフィール・手持ち（色違い・姿違い含む）・デザイン設定のいずれかが変わっていれば別カードとしてカウント
+    const signature = JSON.stringify({
+      text: cardText,
+      pokes: chosenPokemons.map(p => [p.dex, p.form, p.shiny, p.female]),
+      colors: layers.filter(l => l.colorable).map(l => l.color)
+    });
+    if (sessionStorage.getItem('tcs_last_sig') === signature) return;
+    sessionStorage.setItem('tcs_last_sig', signature);
+
     try {
       const res = await fetch(COUNTER_BASE + '/hit/' + COUNTER_NAMESPACE + '/' + COUNTER_KEY);
       const data = await res.json();
