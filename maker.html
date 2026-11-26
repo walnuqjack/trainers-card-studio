@@ -362,7 +362,7 @@
 
     <!-- 3. パーツカラー変更 -->
     <div class="card">
-      <details open>
+      <details>
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer;">
           3. パーツカラー変更 ※クリックして開閉
         </summary>
@@ -2040,10 +2040,16 @@
   render();
 
   if (document.fonts && document.fonts.load) {
-    document.fonts.load('700 68px "Murecho"').then(() => {
+    // 英数字・カタカナ・ひらがな・漢字のフォントパーツをすべて強制読み込みしてから再描画する
+    Promise.all([
+      document.fonts.load('700 68px "Murecho"', 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'),
+      document.fonts.load('700 68px "Murecho"', 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポァィゥェォッャュョー'),
+      document.fonts.load('700 68px "Murecho"', 'あいうえお漢字トレーナーカードスタジオ地方出身地発行元')
+    ]).then(() => {
       render();
     });
   }
+
 </script>
 </body>
 </html>
