@@ -11,11 +11,19 @@
   <style>
     @font-face {
       font-family: 'Murecho';
+      src: url('Murecho-SemiBold.ttf') format('truetype');
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Murecho';
       src: url('Murecho-Bold.ttf') format('truetype');
       font-weight: 700;
       font-style: normal;
       font-display: swap;
     }
+
     
     * { box-sizing: border-box; }
 
@@ -737,16 +745,16 @@
     putText(cardText.name, 2907, 160, '700', 97, 'right');
 
     // ・以下左揃え、Murecho Bold 700、サイズ68
-    putText(cardText.birthplace, 563, 349, '700', 68, 'left');
-    putText(cardText.region,     563, 467, '700', 68, 'left');
-    putText(cardText.license,    563, 585, '700', 68, 'left');
-    putText(cardText.issuer,     563, 703, '700', 68, 'left');
-    putText(cardText.age,       1611, 349, '700', 68, 'left');
-    putText(cardText.sex,       1611, 467, '700', 68, 'left');
-    putText(cardText.birthday,  1611, 585, '700', 68, 'left');
+    putText(cardText.birthplace, 563, 349, '600', 68, 'left');
+    putText(cardText.region,     563, 467, '600', 68, 'left');
+    putText(cardText.license,    563, 585, '600', 68, 'left');
+    putText(cardText.issuer,     563, 703, '600', 68, 'left');
+    putText(cardText.age,       1611, 349, '600', 68, 'left');
+    putText(cardText.sex,       1611, 467, '600', 68, 'left');
+    putText(cardText.birthday,  1611, 585, '600', 68, 'left');
 
     // ・フレンドコード、Xアカウントなど（中央揃え、Murecho Bold 700、X2520 Y349、サイズ68）
-    putText(cardText.contact,   2520, 349, '700', 68, 'center');
+    putText(cardText.contact,   2520, 349, '600', 68, 'center');
 
     ctx.restore();
   }
