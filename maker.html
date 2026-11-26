@@ -976,19 +976,30 @@
   }
 
   // ==========================================
-  // 5. マウスでの直感操作（トレーナー＆ポケモン6匹両対応）
+  // 5. マウス＆スマホ・タブレットタッチでの直感操作
   // ==========================================
+  canvas.style.touchAction = 'none';
+
   let dragMode = null;
   let startMouse = { x: 0, y: 0 };
   let startState = { x: 0, y: 0, scale: 1, rotate: 0, dist: 1, angle: 0 };
+  let pinchState = null;
 
-  function getCanvasPos(e) {
+  function getCanvasPosFromClient(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const ratio = canvas.width / rect.width;
     return {
-      x: (e.clientX - rect.left) * ratio,
-      y: (e.clientY - rect.top) * ratio
+      x: (clientX - rect.left) * ratio,
+      y: (clientY - rect.top) * ratio
     };
+  }
+
+  function getCanvasPos(e) {
+    if (e.touches && e.touches.length > 0) {
+      const t = e.touches.item(0);
+      return getCanvasPosFromClient(t.clientX, t.clientY);
+    }
+    return getCanvasPosFromClient(e.clientX, e.clientY);
   }
 
   function toLocalPos(px, py) {
@@ -1001,28 +1012,27 @@
     };
   }
 
-  canvas.addEventListener('mousedown', (e) => {
-    const pos = getCanvasPos(e);
+  function handlePointerStart(pos, isTouch) {
+    const hitRadius = isTouch ? 110 : 55;
 
-    // 1. 手持ちポケモン6匹の枠（または拡大縮小ハンドル）がクリックされたかチェック
+    // 1. 手持ちポケモン6匹の枠（または拡大縮小ハンドル）
     for (let p = 5; p >= 0; p--) {
-      const pState = chosenPokemons[p];
+      const pState = chosenPokemons.at(p);
       if (!pState.dex) continue;
       const pUrl = getPokemonHomeUrl(pState);
       const baseUrl = getPokemonHomeUrl({ dex: pState.dex, shiny: pState.shiny, female: false });
       const pokeImg = cache[pUrl] || cache[baseUrl];
-      const maskImg = cache[pokemonMasks[p]];
+      const maskImg = cache[pokemonMasks.at(p)];
       if (!pokeImg || !maskImg) continue;
 
-      const { centerX, centerY, drawW, drawH, bounds } = getPokemonTransform(pokeImg, maskImg, pokemonMasks[p], pState);
+      const { centerX, centerY, drawW, drawH, bounds } = getPokemonTransform(pokeImg, maskImg, pokemonMasks.at(p), pState);
       const hw = drawW / 2;
       const hh = drawH / 2;
       const lx = pos.x - centerX;
       const ly = pos.y - centerY;
 
-      // 四隅の青い丸（拡大縮小ハンドル）をクリックした場合
       if (activeTarget && activeTarget.type === 'pokemon' && activeTarget.index === p) {
-        if ([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].some(([cx, cy]) => Math.hypot(lx - cx, ly - cy) < 50)) {
+        if ([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].some(([cx, cy]) => Math.hypot(lx - cx, ly - cy) < hitRadius)) {
           dragMode = 'poke-scale';
           startMouse = pos;
           startState = { x: pState.offsetX, y: pState.offsetY, scale: pState.scale, dist: Math.hypot(lx, ly) || 1 };
@@ -1031,7 +1041,6 @@
         }
       }
 
-      // ポケモンの枠内または画像内をクリックした場合（移動モード）
       const inBounds = (pos.x >= bounds.x && pos.x <= bounds.x + bounds.w && pos.y >= bounds.y && pos.y <= bounds.y + bounds.h);
       const inImage = (Math.abs(lx) <= hw && Math.abs(ly) <= hh);
       if (inBounds || (activeTarget && activeTarget.type === 'pokemon' && activeTarget.index === p && inImage)) {
@@ -1044,20 +1053,20 @@
       }
     }
 
-    // 2. トレーナー画像がクリックされたかチェック
+    // 2. トレーナー画像
     if (trainer.img) {
       const local = toLocalPos(pos.x, pos.y);
       const hw = (trainer.img.width * trainer.scale) / 2;
       const hh = (trainer.img.height * trainer.scale) / 2;
 
-      if (Math.hypot(local.x - 0, local.y - (-hh - 90)) < 55) {
+      if (Math.hypot(local.x - 0, local.y - (-hh - 90)) < hitRadius) {
         activeTarget = { type: 'trainer' };
         dragMode = 'rotate';
       } else if (
-        Math.hypot(local.x - (-hw), local.y - (-hh)) < 55 ||
-        Math.hypot(local.x - hw, local.y - (-hh)) < 55 ||
-        Math.hypot(local.x - hw, local.y - hh) < 55 ||
-        Math.hypot(local.x - (-hw), local.y - hh) < 55
+        Math.hypot(local.x - (-hw), local.y - (-hh)) < hitRadius ||
+        Math.hypot(local.x - hw, local.y - (-hh)) < hitRadius ||
+        Math.hypot(local.x - hw, local.y - hh) < hitRadius ||
+        Math.hypot(local.x - (-hw), local.y - hh) < hitRadius
       ) {
         activeTarget = { type: 'trainer' };
         dragMode = 'scale';
@@ -1081,16 +1090,62 @@
       }
     }
 
-    // 何もない場所をクリックしたら選択枠を解除
     activeTarget = null;
     render();
+  }
+
+  function handlePointerMove(pos, shiftKey) {
+    if (!dragMode) return;
+
+    if (dragMode === 'poke-move' && activeTarget?.type === 'pokemon') {
+      const pState = chosenPokemons.at(activeTarget.index);
+      pState.offsetX = startState.x + (pos.x - startMouse.x);
+      pState.offsetY = startState.y + (pos.y - startMouse.y);
+    } else if (dragMode === 'poke-scale' && activeTarget?.type === 'pokemon') {
+      const pState = chosenPokemons.at(activeTarget.index);
+      const pUrl = getPokemonHomeUrl(pState);
+      const baseUrl = getPokemonHomeUrl({ dex: pState.dex, shiny: pState.shiny, female: false });
+      const pokeImg = cache[pUrl] || cache[baseUrl];
+      const maskImg = cache[pokemonMasks.at(activeTarget.index)];
+      if (pokeImg && maskImg) {
+        const bounds = getMaskBounds(maskImg, pokemonMasks.at(activeTarget.index));
+        const centerX = bounds.x + bounds.w / 2 + pState.offsetX;
+        const centerY = bounds.y + bounds.h / 2 + pState.offsetY;
+        const currentDist = Math.hypot(pos.x - centerX, pos.y - centerY);
+        pState.scale = Math.max(0.2, Math.min(4.0, startState.scale * (currentDist / startState.dist)));
+      }
+    } else if (dragMode === 'move') {
+      trainer.x = startState.x + (pos.x - startMouse.x);
+      trainer.y = startState.y + (pos.y - startMouse.y);
+    } else if (dragMode === 'scale') {
+      const currentDist = Math.hypot(pos.x - trainer.x, pos.y - trainer.y);
+      const newScale = Math.max(0.1, Math.min(3.0, startState.scale * (currentDist / startState.dist)));
+      trainer.scale = newScale;
+      document.getElementById('scaleSlider').value = newScale.toFixed(2);
+    } else if (dragMode === 'rotate') {
+      const currentAngle = Math.atan2(pos.y - trainer.y, pos.x - trainer.x);
+      const diffDeg = ((currentAngle - startState.angle) * 180) / Math.PI;
+      let newDeg = Math.round(startState.rotate + diffDeg);
+      if (shiftKey) {
+        newDeg = Math.round(newDeg / 45) * 45;
+      }
+      if (newDeg > 180) newDeg -= 360;
+      if (newDeg < -180) newDeg += 360;
+      trainer.rotate = newDeg;
+      document.getElementById('rotateSlider').value = newDeg;
+    }
+
+    render();
+  }
+
+  // マウスイベント
+  canvas.addEventListener('mousedown', (e) => {
+    handlePointerStart(getCanvasPos(e), false);
   });
 
   window.addEventListener('mousemove', (e) => {
     const pos = getCanvasPos(e);
-
     if (!dragMode) {
-      // トレーナー画像選択中のカーソルアイコン変更
       if (trainer.img && activeTarget?.type === 'trainer') {
         const local = toLocalPos(pos.x, pos.y);
         const hw = (trainer.img.width * trainer.scale) / 2;
@@ -1109,54 +1164,87 @@
       }
       return;
     }
-
-    if (dragMode === 'poke-move' && activeTarget?.type === 'pokemon') {
-      const pState = chosenPokemons[activeTarget.index];
-      pState.offsetX = startState.x + (pos.x - startMouse.x);
-      pState.offsetY = startState.y + (pos.y - startMouse.y);
-    } else if (dragMode === 'poke-scale' && activeTarget?.type === 'pokemon') {
-      const pState = chosenPokemons[activeTarget.index];
-      const pUrl = getPokemonHomeUrl(pState);
-      const baseUrl = getPokemonHomeUrl({ dex: pState.dex, shiny: pState.shiny, female: false });
-      const pokeImg = cache[pUrl] || cache[baseUrl];
-      const maskImg = cache[pokemonMasks[activeTarget.index]];
-      if (pokeImg && maskImg) {
-        const bounds = getMaskBounds(maskImg, pokemonMasks[activeTarget.index]);
-        const centerX = bounds.x + bounds.w / 2 + pState.offsetX;
-        const centerY = bounds.y + bounds.h / 2 + pState.offsetY;
-        const currentDist = Math.hypot(pos.x - centerX, pos.y - centerY);
-        pState.scale = Math.max(0.2, Math.min(4.0, startState.scale * (currentDist / startState.dist)));
-      }
-    } else if (dragMode === 'move') {
-      trainer.x = startState.x + (pos.x - startMouse.x);
-      trainer.y = startState.y + (pos.y - startMouse.y);
-    } else if (dragMode === 'scale') {
-      const currentDist = Math.hypot(pos.x - trainer.x, pos.y - trainer.y);
-      const newScale = Math.max(0.1, Math.min(3.0, startState.scale * (currentDist / startState.dist)));
-      trainer.scale = newScale;
-      document.getElementById('scaleSlider').value = newScale.toFixed(2);
-    } else if (dragMode === 'rotate') {
-      const currentAngle = Math.atan2(pos.y - trainer.y, pos.x - trainer.x);
-      const diffDeg = ((currentAngle - startState.angle) * 180) / Math.PI;
-      let newDeg = Math.round(startState.rotate + diffDeg);
-      if (e.shiftKey) {
-        newDeg = Math.round(newDeg / 45) * 45;
-      }
-      if (newDeg > 180) newDeg -= 360;
-      if (newDeg < -180) newDeg += 360;
-      trainer.rotate = newDeg;
-      document.getElementById('rotateSlider').value = newDeg;
-    }
-
-    render();
+    handlePointerMove(pos, e.shiftKey);
   });
 
   window.addEventListener('mouseup', () => {
     dragMode = null;
   });
 
-  // プレビュー画像（canvas）の外側をクリックしたら、青い点線枠（選択状態）を解除する
-  window.addEventListener('mousedown', (e) => {
+  // スマホ・タブレット用タッチイベント（1本指ドラッグ ＋ 2本指ピンチ拡大・回転）
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      const t1 = e.touches.item(0);
+      const t2 = e.touches.item(1);
+      const p1 = getCanvasPosFromClient(t1.clientX, t1.clientY);
+      const p2 = getCanvasPosFromClient(t2.clientX, t2.clientY);
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+      const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+      if (!activeTarget && trainer.img) {
+        activeTarget = { type: 'trainer' };
+      }
+      if (activeTarget?.type === 'trainer') {
+        pinchState = { dist, angle, scale: trainer.scale, rotate: trainer.rotate };
+      } else if (activeTarget?.type === 'pokemon') {
+        pinchState = { dist, angle, scale: chosenPokemons.at(activeTarget.index).scale, rotate: 0 };
+      }
+      dragMode = null;
+      render();
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      pinchState = null;
+      handlePointerStart(getCanvasPos(e), true);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 2 && pinchState && activeTarget) {
+      const t1 = e.touches.item(0);
+      const t2 = e.touches.item(1);
+      const p1 = getCanvasPosFromClient(t1.clientX, t1.clientY);
+      const p2 = getCanvasPosFromClient(t2.clientX, t2.clientY);
+      const currentDist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+      const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+      const scaleRatio = currentDist / pinchState.dist;
+
+      if (activeTarget.type === 'trainer') {
+        const newScale = Math.max(0.1, Math.min(3.0, pinchState.scale * scaleRatio));
+        trainer.scale = newScale;
+        document.getElementById('scaleSlider').value = newScale.toFixed(2);
+
+        const diffDeg = ((currentAngle - pinchState.angle) * 180) / Math.PI;
+        let newDeg = Math.round(pinchState.rotate + diffDeg);
+        if (newDeg > 180) newDeg -= 360;
+        if (newDeg < -180) newDeg += 360;
+        trainer.rotate = newDeg;
+        document.getElementById('rotateSlider').value = newDeg;
+      } else if (activeTarget.type === 'pokemon') {
+        const pState = chosenPokemons.at(activeTarget.index);
+        pState.scale = Math.max(0.2, Math.min(4.0, pinchState.scale * scaleRatio));
+      }
+      render();
+      return;
+    }
+
+    if (e.touches.length === 1 && dragMode) {
+      handlePointerMove(getCanvasPos(e), false);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) {
+      dragMode = null;
+      pinchState = null;
+    }
+  });
+
+  // プレビュー画像（canvas）の外側をタップ/クリックしたら、青い点線枠（選択状態）を解除する
+  window.addEventListener('pointerdown', (e) => {
     if (e.target !== canvas && activeTarget !== null) {
       activeTarget = null;
       render();
