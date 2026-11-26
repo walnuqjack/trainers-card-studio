@@ -356,19 +356,25 @@
       <div class="top-bar-items" id="subDiffArea"></div>
     </div>
 
-    <!-- 3. 色変更 -->
+    <!-- 3. パーツカラー変更 -->
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #eee; padding-bottom:6px; margin-bottom:12px;">
-        <h3 style="border:none; margin:0; padding:0;">3. 色変更</h3>
-        <div style="display:flex; gap:6px; align-items:center; font-size:12px;">
-          <span>数値モード：</span>
-          <button type="button" class="btn active" id="modeRgbBtn" style="padding:4px 10px;">RGB</button>
-          <button type="button" class="btn" id="modeHslBtn" style="padding:4px 10px;">HSL</button>
-          <button type="button" class="btn" id="resetColorsBtn" style="padding:4px 10px; margin-left:4px;">色をリセット</button>
+      <details open>
+        <summary style="font-size: 15px; font-weight: bold; cursor: pointer;">
+          3. パーツカラー変更 ※クリックして開閉
+        </summary>
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #eee;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn active" id="modeRgbBtn" style="font-size: 12px; padding: 5px 10px;">RGB指定</button>
+              <button type="button" class="btn" id="modeHslBtn" style="font-size: 12px; padding: 5px 10px;">HSL指定</button>
+            </div>
+            <button type="button" class="btn" id="resetColorsBtn" style="font-size: 12px; padding: 5px 10px;">色を初期値にリセット</button>
+          </div>
+          <div class="color-list" id="colorArea"></div>
         </div>
-      </div>
-      <div class="color-list" id="colorArea"></div>
+      </details>
     </div>
+
 
     <!-- 4. トレーナー情報（文字・性別）入力（折りたたみ式） -->
     <div class="card">
@@ -1895,21 +1901,22 @@
     document.getElementById('mainDiffArea').appendChild(btn);
   });
 
-  // 累計保存カウンターの取得＆カウントアップ（無料CounterAPI使用）
+  // 累計保存カウンターの取得＆カウントアップ（無料・登録不要のAbacus API使用）
   const COUNTER_NAMESPACE = 'trainers-card-studio-jp';
   const COUNTER_KEY = 'saved-cards';
+  const COUNTER_BASE = 'https://abacus.jasoncameron.dev';
 
   async function loadSaveCount() {
     const el = document.getElementById('saveCounterNum');
     if (!el) return;
     try {
-      const res = await fetch(`https://counterapi.dev{COUNTER_NAMESPACE}/${COUNTER_KEY}/`);
+      const res = await fetch(COUNTER_BASE + '/get/' + COUNTER_NAMESPACE + '/' + COUNTER_KEY);
       if (!res.ok) {
         el.textContent = '0';
         return;
       }
       const data = await res.json();
-      el.textContent = (data.count || 0).toLocaleString();
+      el.textContent = (Number(data.value) || 0).toLocaleString();
     } catch (e) {
       el.textContent = '-';
     }
@@ -1920,11 +1927,11 @@
     if (sessionStorage.getItem('tcs_counted')) return;
     sessionStorage.setItem('tcs_counted', '1');
     try {
-      const res = await fetch(`https://counterapi.dev{COUNTER_NAMESPACE}/${COUNTER_KEY}/up`);
+      const res = await fetch(COUNTER_BASE + '/hit/' + COUNTER_NAMESPACE + '/' + COUNTER_KEY);
       const data = await res.json();
       const el = document.getElementById('saveCounterNum');
-      if (el && typeof data.count === 'number') {
-        el.textContent = data.count.toLocaleString();
+      if (el && typeof data.value === 'number') {
+        el.textContent = data.value.toLocaleString();
       }
     } catch (e) {
       // 通信エラー時は無視して画像保存を優先
