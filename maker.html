@@ -43,12 +43,39 @@
       min-width: 0;
     }
 
-    /* スマホや狭い画面では自動で縦1列に戻す */
+    /* スマホや狭い画面では縦1列にし、スクロール時にプレビュー画像だけを画面上部に固定追従させる */
     @media (max-width: 1024px) {
-      .wrapper { flex-direction: column; }
-      .left-pane { position: static; width: 100%; }
-      .right-pane { width: 100%; }
+      .wrapper { flex-direction: column; gap: 0; }
+      .left-pane {
+        position: static;
+        width: 100%;
+        display: contents;
+      }
+      .preview-sticky-box {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: 8px 12px !important;
+        border-radius: 0 0 12px 12px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14) !important;
+      }
+      .preview-sticky-box .hint {
+        font-size: 10px;
+        margin-top: 4px;
+      }
+      #canvas {
+        max-height: 33vh;
+        width: auto;
+        max-width: 100%;
+        margin: 0 auto;
+        display: block;
+      }
+      .right-pane {
+        width: 100%;
+        margin-top: 14px;
+      }
     }
+
 
     .card {
       background: #fff;
@@ -265,9 +292,9 @@
 </header>
 
 <div class="wrapper">
-  <!-- 左側：常に画面に固定されるプレビュー＆トレーナー画像設定 -->
   <div class="left-pane">
-    <div class="card">
+    <!-- 上段：トレーナー画像設定（隙間ゼロで下に繋がる） -->
+    <div class="card" style="border-radius: 12px 12px 0 0; padding-bottom: 10px; box-shadow: none; margin-bottom: 0;">
       <h3>1. トレーナー画像設定＆プレビュー</h3>
       <div class="trainer-controls">
         <input type="file" id="trainerUpload" accept="image/*">
@@ -288,8 +315,16 @@
         </div>
         <button class="btn" id="resetTrainerBtn">位置・サイズをリセット</button>
       </div>
+    </div>
+
+    <!-- 中段：プレビュー画像のみ（スマホで下にスクロールした時ここだけ画面上部に追従！） -->
+    <div class="card preview-sticky-box" style="border-radius: 0; padding-top: 6px; padding-bottom: 6px; box-shadow: none; margin-top: 0; margin-bottom: 0;">
       <canvas id="canvas" width="3033" height="1914"></canvas>
       <div class="hint">※プレビュー上のトレーナー・ポケモンをドラッグで移動、青い角丸で拡大縮小、緑の丸で回転（Shift押しながらで45度刻み）</div>
+    </div>
+
+    <!-- 下段：保存ボタン・X共有ボタン（プレビューの下に隙間ゼロで繋がり、スクロールで流れる） -->
+    <div class="card" style="border-radius: 0 0 12px 12px; padding-top: 8px; margin-top: 0;">
       <button class="save" id="downloadBtn">画像を保存する（3033×1914 PNG）</button>      
       <button type="button" id="shareXBtn" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 15px; font-weight: bold; background: #0f1419; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
         𝕏 で画像を共有する
