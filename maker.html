@@ -876,30 +876,99 @@
     return { centerX, centerY, drawW, drawH, bounds };
   }
 
-  // マスク切り抜き用の作業キャンバスを1枚だけ用意して使い回す（6匹表示時の高速化）
-  const sharedMaskCanvas = document.createElement('canvas');
-  sharedMaskCanvas.width = 3033;
-  sharedMaskCanvas.height = 1914;
-  const sharedMaskCtx = sharedMaskCanvas.getContext('2d');
+  // ポケモン6匹それぞれの切り抜き結果を個別キャッシュするキャンバス（6匹フル表示でも超軽量）
+  const pokeSlotCanvases = Array.from({ length: 6 }, () => {
+    const c = document.createElement('canvas');
+    c.width = 3033;
+    c.height = 1914;
+    return { canvas: c, ctx: c.getContext('2d'), lastKey: '' };
+  });
 
-  // ポケモン単体画像を拡大縮小・移動・左右反転した上で、08_a〜08_fの形でマスクする
-  function createMaskedPokemon(pokeImg, maskImg, maskKey, pokeState) {
+  // ポケモン単体画像を拡大縮小・移動・左右反転した上で、08_a〜08_fの形でマスクする（変更時のみ再計算）
+  function createMaskedPokemon(pokeImg, maskImg, maskKey, pokeState, slotIndex) {
     if (!pokeImg || !maskImg) return null;
+
+    const stateKey = `${pokeImg.src}|${maskKey}|${pokeState.offsetX}|${pokeState.offsetY}|${pokeState.scale}|${pokeState.flip}`;
+    const slot = pokeSlotCanvases[slotIndex];
+    if (slot && slot.lastKey === stateKey) {
+      return slot.canvas;
+    }
+
     const { centerX, centerY, drawW, drawH } = getPokemonTransform(pokeImg, maskImg, maskKey, pokeState);
+    const targetCanvas = slot ? slot.canvas : document.createElement('canvas');
+    const targetCtx = slot ? slot.ctx : targetCanvas.getContext('2d');
 
-    sharedMaskCtx.globalCompositeOperation = 'source-over';
-    sharedMaskCtx.clearRect(0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
+    targetCtx.globalCompositeOperation = 'source-over';
+    targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
 
-    sharedMaskCtx.drawImage(maskImg, 0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
-    sharedMaskCtx.globalCompositeOperation = 'source-in';
+    targetCtx.drawImage(maskImg, 0, 0, targetCanvas.width, targetCanvas.height);
+    targetCtx.globalCompositeOperation = 'source-in';
 
-    sharedMaskCtx.save();
-    sharedMaskCtx.translate(centerX, centerY);
-    if (pokeState.flip) sharedMaskCtx.scale(-1, 1); // 左右反転
-    sharedMaskCtx.drawImage(pokeImg, -drawW / 2, -drawH / 2, drawW, drawH);
-    sharedMaskCtx.restore();
+    targetCtx.save();
+    targetCtx.translate(centerX, centerY);
+    if (pokeState.flip) targetCtx.scale(-1, 1);
+    targetCtx.drawImage(pokeImg, -drawW / 2, -drawH / 2, drawW, drawH);
+    targetCtx.restore();
 
-    return sharedMaskCanvas;
+    if (slot) slot.lastKey = stateKey;
+    return targetCanvas;
+  }
+
+  // 色塗り結果のキャッシュ（同じ色・同じ画像なら再計算せず高速表示）
+  const tintCache = new Map();
+
+  function tintImage(img, color) {
+    const key = img.src + '|' + color;
+    if (tintCache.has(key)) return tintCache.get(key);
+
+    const off = document.createElement('canvas');
+    off.width = canvas.width;
+    off.height = canvas.height;
+    const offCtx = off.getContext('2d');
+    offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    offCtx.globalCompositeOperation = 'source-in';
+    offCtx.fillStyle = color;
+    offCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (tintCache.size > 50) {
+      const firstKey = tintCache.keys().next().value;
+      tintCache.delete(firstKey);
+    }
+    tintCache.set(key, off);
+    return off;
+  }
+
+  // トレーナー画像の切り抜き結果もキャッシュ（動かしていない時は再計算ゼロ）
+  const trainerMaskCanvas = document.createElement('canvas');
+  trainerMaskCanvas.width = 3033;
+  trainerMaskCanvas.height = 1914;
+  const trainerMaskCtx = trainerMaskCanvas.getContext('2d');
+  let lastTrainerMaskKey = '';
+
+  function createMaskedTrainer(maskImg) {
+    if (!trainer.img || !maskImg) return null;
+
+    const stateKey = `${trainer.img.src}|${maskImg.src}|${trainer.x}|${trainer.y}|${trainer.scale}|${trainer.rotate}|${trainer.brightness}|${trainer.contrast}`;
+    if (lastTrainerMaskKey === stateKey) {
+      return trainerMaskCanvas;
+    }
+
+    trainerMaskCtx.globalCompositeOperation = 'source-over';
+    trainerMaskCtx.clearRect(0, 0, trainerMaskCanvas.width, trainerMaskCanvas.height);
+
+    trainerMaskCtx.drawImage(maskImg, 0, 0, trainerMaskCanvas.width, trainerMaskCanvas.height);
+    trainerMaskCtx.globalCompositeOperation = 'source-in';
+
+    trainerMaskCtx.save();
+    trainerMaskCtx.filter = `brightness(${trainer.brightness}%) contrast(${trainer.contrast}%)`;
+    trainerMaskCtx.translate(trainer.x, trainer.y);
+    trainerMaskCtx.rotate((trainer.rotate * Math.PI) / 180);
+    trainerMaskCtx.scale(trainer.scale, trainer.scale);
+    trainerMaskCtx.drawImage(trainer.img, -trainer.img.width / 2, -trainer.img.height / 2);
+    trainerMaskCtx.restore();
+
+    lastTrainerMaskKey = stateKey;
+    return trainerMaskCanvas;
   }
 
   // 色塗り結果のキャッシュ（同じ色・同じ画像なら再計算せず高速表示）
@@ -1069,7 +1138,7 @@
     layers.forEach((layer, i) => {
       if (layer.isPokemonLayer) {
         for (let p = 0; p < 6; p++) {
-          const maskedPoke = createMaskedPokemon(pokeImgs[p], pokeMaskImgs[p], pokemonMasks[p], chosenPokemons[p]);
+          const maskedPoke = createMaskedPokemon(pokeImgs[p], pokeMaskImgs[p], pokemonMasks[p], chosenPokemons[p], p);
           if (maskedPoke) ctx.drawImage(maskedPoke, 0, 0);
         }
         return;
@@ -1288,7 +1357,7 @@
       document.getElementById('rotateSlider').value = newDeg;
     }
 
-    render();
+    scheduleRender();
   }
 
   function handlePointerEnd() {
