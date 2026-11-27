@@ -777,17 +777,27 @@
       img.src = src;
     });
   }
+
   // Pokémon HOME公式GitHubのURL生成（数字ID・模様/色フォルム文字列キー・色違い・♀メス姿に完全対応）
   function getPokemonHomeUrl(poke) {
     if (!poke || !poke.dex) return '';
-    // 底の刻印違い（しんさく／ケッサク）はHOMEスプライトに別画像がないため通常姿の画像IDを使用
+    const dexStr = String(poke.dex);
+
+    // ★自作イラスト差し込み用（ギザみみピチューの画像を images/pichu_spiky.png として入れたら下のコメントアウトを外す）
+    // if (dexStr === '172-spiky-eared') return 'images/pichu_spiky.png';
+
+    // 底の刻印違い・模様なし等、HOMEスプライトに別画像がないものは通常姿の画像IDを使用
     const aliasMap = {
+      '172-spiky-eared': '172', // ← 自作イラストを入れるまでの仮表示（通常ピチュー）
       '854-antique': '854',
       '855-antique': '855',
       '1012-artisan': '1012',
-      '1013-masterpiece': '1013'
+      '1013-masterpiece': '1013',
+      '676-natural': '676' // トリミアン（やせいのすがた）
     };
-    const dexKey = aliasMap[poke.dex] || poke.dex;
+
+    let dexKey = aliasMap[dexStr] || dexStr;
+
     const host = ['raw', 'github' + 'usercontent', 'com'].join('.');
     const base = `https://${host}/PokeAPI/sprites/master/sprites/pokemon/other/home`;
     if (poke.shiny && poke.female) return `${base}/shiny/female/${dexKey}.png`;
@@ -1627,6 +1637,22 @@
         const speciesId = pokemonIdToSpecies.get(pokeId);
         if (!speciesId) return;
 
+        // HOMEスプライトに画像が存在しない特殊・重複フォルムを除外（ギザみみピチューは残す）
+        if (speciesId === 25) {
+          const excludedPikachuForms = [
+            'rock-star', 'belle', 'pop-star', 'phd', 'libre', 'cosplay', 'starter'
+          ];
+          if (excludedPikachuForms.includes(formIdentifier) || excludedPikachuForms.some(f => identifier.endsWith('-' + f))) {
+            return;
+          }
+        }
+        if (speciesId === 133 && (formIdentifier === 'starter' || identifier.endsWith('-starter'))) return;
+        if (speciesId === 658 && (formIdentifier === 'battle-bond' || identifier.endsWith('-battle-bond'))) return;
+        if ((speciesId === 664 || speciesId === 665) && !isDefaultForm) return;
+        if (speciesId === 890 && (formIdentifier === 'eternamax' || identifier.endsWith('-eternamax'))) return;
+        if ((speciesId === 1007 || speciesId === 1008) && !isDefaultForm) return;
+        if (identifier.includes('-totem')) return;
+
         // HOME画像のファイル名キーを決定：
         // デフォルトのpokemon_idに紐づく追加フォーム（ビビヨン・アンノーン・フラベベ・カラナクシ・アルセウス・シキジカ等）は
         // 「speciesId-formIdentifier」（例: 666-icy-snow, 201-b, 422-east）になる
@@ -1643,6 +1669,7 @@
         if (pMap.has(spriteKey)) return;
 
         let label = formIdToJpName.get(formId) || '';
+        if (spriteKey === '172-spiky-eared') label = 'ギザみみ（未実装）';
         if (!label) {
           if (isDefaultForm && isDefaultPoke) {
             label = '通常のすがた';
