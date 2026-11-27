@@ -766,16 +766,46 @@
   }
 
 
+  const loadingImages = {};
+  let renderScheduled = false;
+
+  function scheduleRender() {
+    if (renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(() => {
+      renderScheduled = false;
+      render();
+    });
+  }
+
   function loadImage(src) {
     if (!src) return Promise.resolve(null);
     if (cache[src]) return Promise.resolve(cache[src]);
-    return new Promise((resolve) => {
+    if (loadingImages[src]) return loadingImages[src];
+
+    loadingImages[src] = new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { cache[src] = img; resolve(img); };
-      img.onerror = () => resolve(null);
+      img.onload = () => {
+        cache[src] = img;
+        delete loadingImages[src];
+        scheduleRender();
+        resolve(img);
+      };
+      img.onerror = () => {
+        delete loadingImages[src];
+        resolve(null);
+      };
       img.src = src;
     });
+    return loadingImages[src];
+  }
+
+  function getOrFetchImage(src) {
+    if (!src) return null;
+    if (cache[src]) return cache[src];
+    loadImage(src);
+    return null;
   }
 
   // Pokémon HOME公式GitHubのURL生成（数字ID・模様/色フォルム文字列キー・色違い・♀メス姿に完全対応）
@@ -996,22 +1026,41 @@
     }
   }
 
-  async function render() {
-    const [imgs, maskImg, badgeImgs, pokeImgs, pokeMaskImgs] = await Promise.all([
-      Promise.all(layers.map(l => loadImage(l.src))),
-      loadImage(currentTrainerMaskSrc),
-      Promise.all(chosenBadges.map(b => loadImage(b.src))),
-      Promise.all(chosenPokemons.map(async (p) => {
+  async function render(waitAll = false) {
+    let imgs, maskImg, badgeImgs, pokeImgs, pokeMaskImgs;
+
+    if (waitAll) {
+      [imgs, maskImg, badgeImgs, pokeImgs, pokeMaskImgs] = await Promise.all([
+        Promise.all(layers.map(l => loadImage(l.src))),
+        loadImage(currentTrainerMaskSrc),
+        Promise.all(chosenBadges.map(b => loadImage(b.src))),
+        Promise.all(chosenPokemons.map(async (p) => {
+          if (!p.dex) return null;
+          if (p.female) {
+            const fImg = await loadImage(getPokemonHomeUrl(p));
+            if (fImg) return fImg;
+            return loadImage(getPokemonHomeUrl({ dex: p.dex, shiny: p.shiny, female: false }));
+          }
+          return loadImage(getPokemonHomeUrl(p));
+        })),
+        Promise.all(pokemonMasks.map(src => loadImage(src)))
+      ]);
+    } else {
+      imgs = layers.map(l => getOrFetchImage(l.src));
+      maskImg = getOrFetchImage(currentTrainerMaskSrc);
+      badgeImgs = chosenBadges.map(b => getOrFetchImage(b.src));
+      pokeImgs = chosenPokemons.map(p => {
         if (!p.dex) return null;
+        const primaryUrl = getPokemonHomeUrl(p);
+        const img = getOrFetchImage(primaryUrl);
+        if (img) return img;
         if (p.female) {
-          const fImg = await loadImage(getPokemonHomeUrl(p));
-          if (fImg) return fImg;
-          return loadImage(getPokemonHomeUrl({ dex: p.dex, shiny: p.shiny, female: false }));
+          return getOrFetchImage(getPokemonHomeUrl({ dex: p.dex, shiny: p.shiny, female: false }));
         }
-        return loadImage(getPokemonHomeUrl(p));
-      })),
-      Promise.all(pokemonMasks.map(src => loadImage(src)))
-    ]);
+        return null;
+      });
+      pokeMaskImgs = pokemonMasks.map(src => getOrFetchImage(src));
+    }
 
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1094,9 +1143,13 @@
       y: dx * Math.sin(rad) + dy * Math.cos(rad)
     };
   }
+  let isRemoteTrackpadDrag = false;
+  let hasMovedInDrag = false;
 
   function handlePointerStart(pos, isTouch) {
     const hitRadius = isTouch ? 110 : 55;
+    isRemoteTrackpadDrag = false;
+    hasMovedInDrag = false;
 
     // 1. 手持ちポケモン6匹の枠（または拡大縮小ハンドル）
     for (let p = 5; p >= 0; p--) {
@@ -1173,12 +1226,29 @@
       }
     }
 
+    // 3. すでにポケモン選択中なら、余白（トラックパッド領域）をドラッグして移動できるようにする
+    if (activeTarget && activeTarget.type === 'pokemon') {
+      const pState = chosenPokemons.at(activeTarget.index);
+      if (pState && pState.dex) {
+        isRemoteTrackpadDrag = true;
+        dragMode = 'poke-move';
+        startMouse = pos;
+        startState = { x: pState.offsetX, y: pState.offsetY, scale: pState.scale, dist: 1 };
+        render();
+        return;
+      }
+    }
+
     activeTarget = null;
     render();
   }
 
   function handlePointerMove(pos, shiftKey) {
     if (!dragMode) return;
+
+    if (Math.hypot(pos.x - startMouse.x, pos.y - startMouse.y) > 8) {
+      hasMovedInDrag = true;
+    }
 
     if (dragMode === 'poke-move' && activeTarget?.type === 'pokemon') {
       const pState = chosenPokemons.at(activeTarget.index);
@@ -1221,6 +1291,17 @@
     render();
   }
 
+  function handlePointerEnd() {
+    // 余白を動かさずに「ポンッと軽くタップ」しただけのときは、これまで通り選択解除（青い枠を消す）
+    if (isRemoteTrackpadDrag && !hasMovedInDrag) {
+      activeTarget = null;
+      render();
+    }
+    dragMode = null;
+    isRemoteTrackpadDrag = false;
+    hasMovedInDrag = false;
+  }
+
   // マウスイベント
   canvas.addEventListener('mousedown', (e) => {
     handlePointerStart(getCanvasPos(e), false);
@@ -1251,7 +1332,7 @@
   });
 
   window.addEventListener('mouseup', () => {
-    dragMode = null;
+    handlePointerEnd();
   });
 
   // スマホ・タブレット用タッチイベント（1本指ドラッグ ＋ 2本指ピンチ拡大・回転）
@@ -1321,7 +1402,7 @@
 
   canvas.addEventListener('touchend', (e) => {
     if (e.touches.length === 0) {
-      dragMode = null;
+      handlePointerEnd();
       pinchState = null;
     }
   });
