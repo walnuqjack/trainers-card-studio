@@ -777,18 +777,24 @@
       img.src = src;
     });
   }
-
   // Pokémon HOME公式GitHubのURL生成（数字ID・模様/色フォルム文字列キー・色違い・♀メス姿に完全対応）
   function getPokemonHomeUrl(poke) {
     if (!poke || !poke.dex) return '';
+    // 底の刻印違い（しんさく／ケッサク）はHOMEスプライトに別画像がないため通常姿の画像IDを使用
+    const aliasMap = {
+      '854-antique': '854',
+      '855-antique': '855',
+      '1012-artisan': '1012',
+      '1013-masterpiece': '1013'
+    };
+    const dexKey = aliasMap[poke.dex] || poke.dex;
     const host = ['raw', 'github' + 'usercontent', 'com'].join('.');
     const base = `https://${host}/PokeAPI/sprites/master/sprites/pokemon/other/home`;
-    if (poke.shiny && poke.female) return `${base}/shiny/female/${poke.dex}.png`;
-    if (poke.shiny) return `${base}/shiny/${poke.dex}.png`;
-    if (poke.female) return `${base}/female/${poke.dex}.png`;
-    return `${base}/${poke.dex}.png`;
+    if (poke.shiny && poke.female) return `${base}/shiny/female/${dexKey}.png`;
+    if (poke.shiny) return `${base}/shiny/${dexKey}.png`;
+    if (poke.female) return `${base}/female/${dexKey}.png`;
+    return `${base}/${dexKey}.png`;
   }
-
 
   function getMaskBounds(maskImg, key) {
     if (maskBoundsCache[key]) return maskBoundsCache[key];
