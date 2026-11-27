@@ -971,24 +971,6 @@
     return off;
   }
 
-  function createMaskedTrainer(maskImg) {
-    if (!trainer.img || !maskImg) return null;
-    sharedMaskCtx.globalCompositeOperation = 'source-over';
-    sharedMaskCtx.clearRect(0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
-
-    sharedMaskCtx.drawImage(maskImg, 0, 0, sharedMaskCanvas.width, sharedMaskCanvas.height);
-    sharedMaskCtx.globalCompositeOperation = 'source-in';
-
-    sharedMaskCtx.save();
-    sharedMaskCtx.filter = `brightness(${trainer.brightness}%) contrast(${trainer.contrast}%)`;
-    sharedMaskCtx.translate(trainer.x, trainer.y);
-    sharedMaskCtx.rotate((trainer.rotate * Math.PI) / 180);
-    sharedMaskCtx.scale(trainer.scale, trainer.scale);
-    sharedMaskCtx.drawImage(trainer.img, -trainer.img.width / 2, -trainer.img.height / 2);
-    sharedMaskCtx.restore();
-
-    return sharedMaskCanvas;
-  }
 
   // 選択中の対象（トレーナー画像 または ポケモン1〜6匹目）に操作用ハンドルを描画
   function drawTransformGizmo(pokeImgs, pokeMaskImgs) {
