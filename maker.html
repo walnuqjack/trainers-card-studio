@@ -1975,13 +1975,29 @@
         return;
       }
       const data = await res.json();
-      el.textContent = (Number(data.value) || 0).toLocaleString();
+      el.textContent = Math.max(0, (Number(data.value) || 0) - 3).toLocaleString();
     } catch (e) {
       el.textContent = '-';
     }
   }
 
+  // URLに ?admin=1 が付いていたら運営者除外モードを自動ON（PC・スマホ・iPad共通）
+  if (location.search.includes('admin=1')) {
+    localStorage.setItem('tcs_ignore_count', '1');
+  }
+
   async function incrementSaveCount() {
+    // 1. Live Server（localhost / 127.0.0.1 / ローカルファイル）での試運転時はカウントしない
+    const host = location.hostname;
+    if (!host || host === 'localhost' || host === '127.0.0.1' || location.protocol === 'file:') {
+      return;
+    }
+
+    // 2. 本番サイト上でも「運営者除外モード」がONの端末からはカウントしない
+    if (localStorage.getItem('tcs_ignore_count') === '1') {
+      return;
+    }
+
     // プロフィール・手持ち（色違い・姿違い含む）・デザイン設定のいずれかが変わっていれば別カードとしてカウント
     const signature = JSON.stringify({
       text: cardText,
@@ -1996,7 +2012,7 @@
       const data = await res.json();
       const el = document.getElementById('saveCounterNum');
       if (el && typeof data.value === 'number') {
-        el.textContent = data.value.toLocaleString();
+        el.textContent = Math.max(0, data.value - 3).toLocaleString();
       }
     } catch (e) {
       // 通信エラー時は無視して画像保存を優先
