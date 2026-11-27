@@ -914,30 +914,6 @@
     return targetCanvas;
   }
 
-  // 色塗り結果のキャッシュ（同じ色・同じ画像なら再計算せず高速表示）
-  const tintCache = new Map();
-
-  function tintImage(img, color) {
-    const key = img.src + '|' + color;
-    if (tintCache.has(key)) return tintCache.get(key);
-
-    const off = document.createElement('canvas');
-    off.width = canvas.width;
-    off.height = canvas.height;
-    const offCtx = off.getContext('2d');
-    offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    offCtx.globalCompositeOperation = 'source-in';
-    offCtx.fillStyle = color;
-    offCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (tintCache.size > 50) {
-      const firstKey = tintCache.keys().next().value;
-      tintCache.delete(firstKey);
-    }
-    tintCache.set(key, off);
-    return off;
-  }
-
   // トレーナー画像の切り抜き結果もキャッシュ（動かしていない時は再計算ゼロ）
   const trainerMaskCanvas = document.createElement('canvas');
   trainerMaskCanvas.width = 3033;
