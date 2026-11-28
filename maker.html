@@ -290,7 +290,14 @@
       display: block;
       margin: 0 auto 4px;
     }
-  </style>
+
+    /* スマホ・タブレット画面（820px以下）のみカラーコード入力とスポイトを表示 */
+    .mobile-color-tool { display: none; }
+    @media (max-width: 820px) {
+      .mobile-color-tool { display: inline-block; }
+    }
+
+</style>
 </head>
 
 
@@ -378,15 +385,21 @@
   <div class="right-pane">
     <!-- 2. パーツ切替 -->
     <div class="card">
-      <h3>2. パーツ切替（写真枠・言語）</h3>
-      <div class="top-bar-items" id="subDiffArea"></div>
+      <details>
+        <summary style="font-size: 15px; font-weight: bold; cursor: pointer;">
+          2. パーツ切替（写真枠・言語） ※クリックして開閉
+        </summary>
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #eee;">
+          <div class="top-bar-items" id="subDiffArea"></div>
+        </div>
+      </details>
     </div>
 
     <!-- 3. パーツカラー変更 -->
     <div class="card">
       <details>
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer;">
-          3. パーツカラー変更 ※クリックして開閉
+          3. パーツカラー変更
         </summary>
         <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #eee;">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
@@ -406,7 +419,7 @@
     <div class="card">
       <details>
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
-          4. トレーナー情報入力 ※クリックして開閉
+          4. トレーナー情報入力 
         </summary>
         <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
           <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; font-size:13px;">
@@ -461,7 +474,7 @@
     <div class="card">
       <details>
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
-          5. 手持ちポケモン選択（最大6匹） ※クリックして開閉
+          5. 手持ちポケモン選択（最大6匹）
         </summary>
         <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:10px; font-size:12px;">
@@ -477,7 +490,7 @@
     <div class="card">
       <details>
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
-          6. ジムバッジ・ヌシバッジ・スター団バッジ（最大8個） ※クリックして開閉
+          6. ジムバッジ・ヌシバッジ・スター団バッジ（最大8個）
         </summary>
         <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13px;">
@@ -494,7 +507,7 @@
     <div class="card">
       <details>
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
-          7. ボールデザイン選択 ※クリックして開閉
+          7. ボールデザイン選択
         </summary>
         <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
           <div class="diff-list" id="mainDiffArea"></div>
@@ -533,7 +546,7 @@
 
 <script>
   const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
   // 6匹それぞれのマスク枠（1匹目：08_a 〜 6匹目：08_f）
   const pokemonMasks = [
@@ -1132,6 +1145,62 @@
 
     // 4. 操作用ハンドルを描画
     drawTransformGizmo(pokeImgs, pokeMaskImgs);
+
+    
+    // 5. スポイト操作中の拡大ルーペ（虫眼鏡）＋吸い取り色見本を描画
+    if (eyedropperLoupe) {
+      const { x, y, hex } = eyedropperLoupe;
+      ctx.save();
+
+      // 狙っている位置の小さな十字照準
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(x - 24, y); ctx.lineTo(x + 24, y);
+      ctx.moveTo(x, y - 24); ctx.lineTo(x, y + 24);
+      ctx.stroke();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x - 24, y); ctx.lineTo(x + 24, y);
+      ctx.moveTo(x, y - 24); ctx.lineTo(x, y + 24);
+      ctx.stroke();
+
+      // 照準の少し上に表示する「拡大虫眼鏡ルーペ」（画面端なら下側に自動回避）
+      const loupeR = 95;
+      const loupeY = y < 260 ? y + 150 : y - 150;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, loupeY, loupeR, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(zoomSnapCanvas, x - loupeR, loupeY - loupeR, loupeR * 2, loupeR * 2);
+
+      // ルーペ中央の1ピクセル枠線（いま吸っているドットがひと目で分かる）
+      const cell = (loupeR * 2) / 21;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x - cell / 2, loupeY - cell / 2, cell, cell);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - cell / 2, loupeY - cell / 2, cell, cell);
+      ctx.restore();
+
+      // ルーペの外枠（吸い取った色の太いリングで色がハッキリ分かる）
+      ctx.beginPath();
+      ctx.arc(x, loupeY, loupeR, 0, Math.PI * 2);
+      ctx.lineWidth = 18;
+      ctx.strokeStyle = hex;
+      ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+
   }
 
   // ==========================================
@@ -1173,7 +1242,48 @@
   let isRemoteTrackpadDrag = false;
   let hasMovedInDrag = false;
 
+  let isEyedropperDragging = false;
+  let eyedropperLoupe = null; // { x, y, hex }
+
+  const zoomSnapCanvas = document.createElement('canvas');
+  zoomSnapCanvas.width = 21;
+  zoomSnapCanvas.height = 21;
+  const zoomSnapCtx = zoomSnapCanvas.getContext('2d');
+  zoomSnapCtx.imageSmoothingEnabled = false;
+
+
+  function sampleEyedropperAt(pos, isTouch) {
+    // タッチ操作時は指先で狙う場所が隠れないよう、指の少し上（240px上）を照準にする
+    const offsetY = isTouch ? -240 : 0;
+    const px = Math.max(0, Math.min(canvas.width - 1, Math.round(pos.x)));
+    const py = Math.max(0, Math.min(canvas.height - 1, Math.round(pos.y + offsetY)));
+
+    const prevGizmo = showGizmo;
+    showGizmo = false;
+    eyedropperLoupe = null;
+    render();
+
+    const [r, g, b] = Array.from(ctx.getImageData(px, py, 1, 1).data);
+    const hex = rgbToHex(r, g, b);
+
+    // 照準の周囲21×21ピクセルを切り取って拡大ルーペ用にする
+    zoomSnapCtx.clearRect(0, 0, 21, 21);
+    zoomSnapCtx.drawImage(canvas, px - 10, py - 10, 21, 21, 0, 0, 21, 21);
+
+    showGizmo = prevGizmo;
+    eyedropperLoupe = { x: px, y: py, hex };
+
+    render();
+  }
+
   function handlePointerStart(pos, isTouch) {
+    // ★スポイト待機中なら、ドラッグ開始して拡大ルーペ＆リアルタイム色反映を行う
+    if (activeEyedropper) {
+      isEyedropperDragging = true;
+      sampleEyedropperAt(pos, isTouch);
+      return;
+    }
+
     const hitRadius = isTouch ? 110 : 55;
     isRemoteTrackpadDrag = false;
     hasMovedInDrag = false;
@@ -1270,7 +1380,12 @@
     render();
   }
 
-  function handlePointerMove(pos, shiftKey) {
+  function handlePointerMove(pos, shiftKey, isTouch = false) {
+    if (isEyedropperDragging && activeEyedropper) {
+      sampleEyedropperAt(pos, isTouch);
+      return;
+    }
+
     if (!dragMode) return;
 
     if (Math.hypot(pos.x - startMouse.x, pos.y - startMouse.y) > 8) {
@@ -1319,6 +1434,19 @@
   }
 
   function handlePointerEnd() {
+    if (isEyedropperDragging) {
+      if (eyedropperLoupe && activeEyedropper) {
+        activeEyedropper.layer.color = eyedropperLoupe.hex;
+        activeEyedropper.sync();
+      }
+      isEyedropperDragging = false;
+      eyedropperLoupe = null;
+      cancelEyedropper();
+      render();
+      return;
+    }
+
+
     // 余白を動かさずに「ポンッと軽くタップ」しただけのときは、これまで通り選択解除（青い枠を消す）
     if (isRemoteTrackpadDrag && !hasMovedInDrag) {
       activeTarget = null;
@@ -1422,8 +1550,9 @@
       return;
     }
 
-    if (e.touches.length === 1 && dragMode) {
-      handlePointerMove(getCanvasPos(e), false);
+    // 変更後（スポイトドラッグ中も追従させ、第3引数に true を渡して指の少し上に照準を出す）
+    if (e.touches.length === 1 && (dragMode || isEyedropperDragging)) {
+      handlePointerMove(getCanvasPos(e), false, true);
     }
   }, { passive: false });
 
@@ -1944,11 +2073,23 @@
     return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
   }
 
-  // 色変更UI構築（カラーピッカー ＋ 1ずつ増減できる▲▼矢印付きRGB/HSL数値入力）
+  // 色変更UI構築（PCは従来のすっきり表示 ＋ スマホ画面のみHEXコード入力＆スポイトを表示）
   let colorInputMode = 'RGB';
   const colorUpdaters = [];
+  let activeEyedropper = null; // { layer, sync, btn }
+
+  function cancelEyedropper() {
+    if (!activeEyedropper) return;
+    activeEyedropper.btn.style.background = '#fff';
+    activeEyedropper.btn.style.color = '#1e293b';
+    activeEyedropper.btn.style.borderColor = '#cbd5e1';
+    activeEyedropper.btn.textContent = '🧪スポイト';
+    canvas.style.cursor = 'default';
+    activeEyedropper = null;
+  }
 
   layers.filter(l => l.colorable).forEach(layer => {
+    if (!layer.defaultColor) layer.defaultColor = layer.color;
     const div = document.createElement('div');
     div.className = 'box';
     div.style.flexDirection = 'column';
@@ -1956,9 +2097,16 @@
     div.style.gap = '6px';
 
     div.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
         <span style="font-weight:bold;">${layer.name}</span>
-        <input type="color" class="c-picker" value="${layer.color}">
+        <div style="display:flex; align-items:center; gap:5px;">
+          <input type="text" class="hex-inp mobile-color-tool" maxlength="7" placeholder="#000000" title="カラーコード直接入力" style="width:76px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; font-family:monospace; text-transform:uppercase;">
+          <button type="button" class="eyedrop-btn mobile-color-tool" title="プレビュー画像をタップして色を抽出" style="padding:4px 8px; font-size:11px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; border-radius:4px; cursor:pointer; white-space:nowrap;">🧪スポイト</button>
+          <input type="color" class="c-picker" value="${layer.color}">
+          <button type="button" class="reset-color-btn" title="このパーツの色を初期値に戻す" style="padding:3px 7px; font-size:12px; border:1px solid #cbd5e1; background:#fff; color:#475569; border-radius:4px; cursor:pointer;">↺</button>
+        </div>
+
+          </div>
       </div>
       <div class="c-nums" style="display:flex; gap:6px; justify-content:space-between; font-size:11px;">
         <label style="display:flex; align-items:center; gap:2px; flex:1;">
@@ -1977,11 +2125,14 @@
     `;
 
     const picker = div.querySelector('.c-picker');
+    const hexInp = div.querySelector('.hex-inp');
+    const eyedropBtn = div.querySelector('.eyedrop-btn');
     const lbl1 = div.querySelector('.lbl-1'), lbl2 = div.querySelector('.lbl-2'), lbl3 = div.querySelector('.lbl-3');
     const inp1 = div.querySelector('.inp-1'), inp2 = div.querySelector('.inp-2'), inp3 = div.querySelector('.inp-3');
 
     function syncInputsFromLayer() {
       picker.value = layer.color;
+      hexInp.value = layer.color.toUpperCase();
       const rgb = hexToRgb(layer.color);
       if (colorInputMode === 'RGB') {
         lbl1.textContent = 'R'; lbl2.textContent = 'G'; lbl3.textContent = 'B';
@@ -2008,8 +2159,39 @@
         layer.color = rgbToHex(rgb.r, rgb.g, rgb.b);
       }
       picker.value = layer.color;
+      hexInp.value = layer.color;
       render();
     }
+
+    // HEXカラーコード直接入力（#なしや3桁略記にも対応）
+    hexInp.onchange = () => {
+      let val = hexInp.value.trim().replace(/^#/, '');
+      if (/^[0-9a-fA-F]{3}$/.test(val)) {
+        val = val.split('').map(c => c + c).join('');
+      }
+      if (/^[0-9a-fA-F]{6}$/.test(val)) {
+        layer.color = '#' + val.toUpperCase();
+        syncInputsFromLayer();
+        render();
+      } else {
+        hexInp.value = layer.color.toUpperCase();
+      }
+    };
+
+    // スマホ対応スポイトボタン
+    eyedropBtn.onclick = (e) => {
+      e.stopPropagation();
+      const isSame = activeEyedropper && activeEyedropper.layer === layer;
+      cancelEyedropper();
+      if (!isSame) {
+        activeEyedropper = { layer, sync: syncInputsFromLayer, btn: eyedropBtn };
+        eyedropBtn.style.background = '#2563eb';
+        eyedropBtn.style.color = '#fff';
+        eyedropBtn.style.borderColor = '#2563eb';
+        eyedropBtn.textContent = 'プレビューをタップ';
+        canvas.style.cursor = 'crosshair';
+      }
+    };
 
     picker.oninput = (e) => {
       layer.color = e.target.value.toUpperCase();
@@ -2017,12 +2199,19 @@
       render();
     };
 
+    div.querySelector('.reset-color-btn').onclick = () => {
+      layer.color = layer.defaultColor;
+      syncInputsFromLayer();
+      render();
+    };    
+
     [inp1, inp2, inp3].forEach(inp => { inp.oninput = applyFromInputs; });
 
     colorUpdaters.push(syncInputsFromLayer);
     syncInputsFromLayer();
     document.getElementById('colorArea').appendChild(div);
   });
+
 
   document.getElementById('modeRgbBtn').onclick = () => {
     colorInputMode = 'RGB';
