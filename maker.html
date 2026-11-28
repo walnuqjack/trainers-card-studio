@@ -332,7 +332,11 @@
       <div class="trainer-controls">
         <input type="file" id="trainerUpload" accept="image/*">
         <label>拡大縮小 <input type="range" id="scaleSlider" min="0.1" max="3.0" step="0.01" value="1"></label>
-        <label>回転 <input type="range" id="rotateSlider" min="-180" max="180" step="1" value="0"></label>
+        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:4px;">回転 <input type="range" id="rotateSlider" min="-180" max="180" step="1" value="0"></label>
+          <button type="button" class="btn" id="rotateMinus45Btn" style="padding:3px 7px; font-size:11px;" title="左に45°回転">-45°</button>
+          <button type="button" class="btn" id="rotatePlus45Btn" style="padding:3px 7px; font-size:11px;" title="右に45°回転">+45°</button>
+        </div>
         <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; width:100%; padding-top:6px; border-top:1px dashed #cbd5e1;">
           <label style="display:flex; align-items:center; gap:6px;">
             明るさ
@@ -1146,50 +1150,81 @@
     // 4. 操作用ハンドルを描画
     drawTransformGizmo(pokeImgs, pokeMaskImgs);
 
-    
     // 5. スポイト操作中の拡大ルーペ（虫眼鏡）＋吸い取り色見本を描画
     if (eyedropperLoupe) {
-      const { x, y, hex } = eyedropperLoupe;
+      const { x, y, hex, fingerX, fingerY, isTouch } = eyedropperLoupe;
       ctx.save();
 
-      // 狙っている位置の小さな十字照準
+      // タッチ操作時は「指の位置」と「照準」をガイド線でつなぐ
+      if (isTouch && Math.hypot(x - fingerX, y - fingerY) > 30) {
+        ctx.save();
+        ctx.setLineDash([10, 8]);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(fingerX, fingerY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.arc(fingerX, fingerY, 14, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.5)';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 狙っている位置の十字照準
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 7;
       ctx.beginPath();
-      ctx.moveTo(x - 24, y); ctx.lineTo(x + 24, y);
-      ctx.moveTo(x, y - 24); ctx.lineTo(x, y + 24);
+      ctx.moveTo(x - 28, y); ctx.lineTo(x + 28, y);
+      ctx.moveTo(x, y - 28); ctx.lineTo(x, y + 28);
       ctx.stroke();
       ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.moveTo(x - 24, y); ctx.lineTo(x + 24, y);
-      ctx.moveTo(x, y - 24); ctx.lineTo(x, y + 24);
+      ctx.moveTo(x - 28, y); ctx.lineTo(x + 28, y);
+      ctx.moveTo(x, y - 28); ctx.lineTo(x, y + 28);
       ctx.stroke();
 
-      // 照準の少し上に表示する「拡大虫眼鏡ルーペ」（画面端なら下側に自動回避）
+      // 拡大ルーペの配置計算（上端に近づいたら照準の横へ逃がして照準・指と重ならないようにする）
       const loupeR = 95;
-      const loupeY = y < 260 ? y + 150 : y - 150;
+      const margin = loupeR + 20;
+      let rawLoupeX = x;
+      let rawLoupeY = y - 165;
+
+      if (y < 290) {
+        rawLoupeX = x > 320 ? x - 210 : x + 210;
+        rawLoupeY = Math.max(margin, y + 40);
+      }
+
+      const loupeX = Math.max(margin, Math.min(canvas.width - margin, rawLoupeX));
+      const loupeY = Math.max(margin, Math.min(canvas.height - margin, rawLoupeY));
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(x, loupeY, loupeR, 0, Math.PI * 2);
+      ctx.arc(loupeX, loupeY, loupeR, 0, Math.PI * 2);
       ctx.clip();
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(zoomSnapCanvas, x - loupeR, loupeY - loupeR, loupeR * 2, loupeR * 2);
+      ctx.drawImage(zoomSnapCanvas, loupeX - loupeR, loupeY - loupeR, loupeR * 2, loupeR * 2);
 
-      // ルーペ中央の1ピクセル枠線（いま吸っているドットがひと目で分かる）
+      // ルーペ中央の1ピクセル枠線
       const cell = (loupeR * 2) / 21;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 4;
-      ctx.strokeRect(x - cell / 2, loupeY - cell / 2, cell, cell);
+      ctx.strokeRect(loupeX - cell / 2, loupeY - cell / 2, cell, cell);
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x - cell / 2, loupeY - cell / 2, cell, cell);
+      ctx.strokeRect(loupeX - cell / 2, loupeY - cell / 2, cell, cell);
       ctx.restore();
 
-      // ルーペの外枠（吸い取った色の太いリングで色がハッキリ分かる）
+      // ルーペの外枠（吸い取った色の太いリング）
       ctx.beginPath();
-      ctx.arc(x, loupeY, loupeR, 0, Math.PI * 2);
+      ctx.arc(loupeX, loupeY, loupeR, 0, Math.PI * 2);
       ctx.lineWidth = 18;
       ctx.strokeStyle = hex;
       ctx.stroke();
@@ -1253,9 +1288,11 @@
 
 
   function sampleEyedropperAt(pos, isTouch) {
-    // タッチ操作時は指先で狙う場所が隠れないよう、指の少し上（240px上）を照準にする
-    const offsetY = isTouch ? -240 : 0;
-    const px = Math.max(0, Math.min(canvas.width - 1, Math.round(pos.x)));
+    // 大きめの指でも照準が隠れないよう、タッチ時は指先の十分上（380px上）を照準にする
+    const offsetY = isTouch ? -380 : 0;
+    const fingerX = Math.max(0, Math.min(canvas.width - 1, Math.round(pos.x)));
+    const fingerY = Math.max(0, Math.min(canvas.height - 1, Math.round(pos.y)));
+    const px = fingerX;
     const py = Math.max(0, Math.min(canvas.height - 1, Math.round(pos.y + offsetY)));
 
     const prevGizmo = showGizmo;
@@ -1271,10 +1308,10 @@
     zoomSnapCtx.drawImage(canvas, px - 10, py - 10, 21, 21, 0, 0, 21, 21);
 
     showGizmo = prevGizmo;
-    eyedropperLoupe = { x: px, y: py, hex };
-
+    eyedropperLoupe = { x: px, y: py, hex, fingerX, fingerY, isTouch };
     render();
   }
+
 
   function handlePointerStart(pos, isTouch) {
     // ★スポイト待機中なら、ドラッグ開始して拡大ルーペ＆リアルタイム色反映を行う
@@ -1598,6 +1635,26 @@
 
   document.getElementById('scaleSlider').oninput = (e) => { trainer.scale = parseFloat(e.target.value); render(); };
   document.getElementById('rotateSlider').oninput = (e) => { trainer.rotate = parseFloat(e.target.value); render(); };
+  function stepTrainerRotate(delta) {
+    // 現在の角度から最も近い45°の倍数に揃えた上で ±45° 回転する
+    let next = Math.round(trainer.rotate / 45) * 45 + delta;
+    if (next > 180) next -= 360;
+    if (next < -180) next += 360;
+    trainer.rotate = next;
+    document.getElementById('rotateSlider').value = next;
+    render();
+  }
+  document.getElementById('rotateMinus45Btn').onclick = () => stepTrainerRotate(-45);
+  document.getElementById('rotatePlus45Btn').onclick = () => stepTrainerRotate(45);
+
+  document.getElementById('resetTrainerBtn').onclick = () => {
+    trainer.x = 2450; trainer.y = 1050; trainer.scale = 1.0; trainer.rotate = 0;
+    document.getElementById('scaleSlider').value = 1.0;
+    document.getElementById('rotateSlider').value = 0;
+    render();
+  };
+
+  
   document.getElementById('resetTrainerBtn').onclick = () => {
     trainer.x = 2450; trainer.y = 1050; trainer.scale = 1.0; trainer.rotate = 0;
     document.getElementById('scaleSlider').value = 1.0;
