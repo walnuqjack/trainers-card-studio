@@ -330,7 +330,10 @@
     <div class="card" style="border-radius: 12px 12px 0 0; padding-bottom: 10px; box-shadow: none; margin-bottom: 0;">
       <h3>1. トレーナー画像設定＆プレビュー</h3>
       <div class="trainer-controls">
-        <input type="file" id="trainerUpload" accept="image/*">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%;">
+          <input type="file" id="trainerUpload" accept="image/*">
+          <button type="button" class="btn" id="clearTrainerImgBtn" style="padding:4px 8px; font-size:11px; color:#dc2626; border-color:#fca5a5;">画像を削除</button>
+        </div>
         <label>拡大縮小 <input type="range" id="scaleSlider" min="0.1" max="3.0" step="0.01" value="1"></label>
         <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:4px;">回転 <input type="range" id="rotateSlider" min="-180" max="180" step="1" value="0"></label>
@@ -496,6 +499,9 @@
         <summary style="font-size: 15px; font-weight: bold; cursor: pointer; padding: 4px 0; user-select: none;">
           6. ジムバッジ・ヌシバッジ・スター団バッジ（最大8個）
         </summary>
+        <p style="font-size: 13px; color: #64748b; margin: 6px 0 8px;">
+          ※スマホでは複数のバッジを選択してこの項目を開いている間のみ、プレビューの上部固定が外れる場合があります（閉じると元に戻ります）
+        </p>
         <div style="margin-top: 14px; border-top: 2px solid #eee; padding-top: 12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13px;">
             <span>選択中（クリックで追加、←→で順番変更、×で削除）：</span>
@@ -1630,6 +1636,15 @@
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
+  };
+
+  document.getElementById('clearTrainerImgBtn').onclick = () => {
+    trainer.img = null;
+    document.getElementById('trainerUpload').value = '';
+    if (activeTarget && activeTarget.type === 'trainer') {
+      activeTarget = null;
+    }
+    render();
   };
 
 
